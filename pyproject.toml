@@ -48,11 +48,13 @@ version_files = ["src/attrmagic/__about__.py:__version__"]
 [tool.pytest.ini_options]
 minversion = "6.0"
 python_files = ["tests.py", "test_*.py"]
+addopts = "--cov=attrmagic --cov-report html"
 
-[tool.mypy.overrides]
-module = "tests.*"
+[tool.mypy-mycode.tests]
 ignore_errors = true
 
+[tool.coverage.report]
+exclude_also = ["except ImportError:"]
 
 [dependency-groups]
 dev = [

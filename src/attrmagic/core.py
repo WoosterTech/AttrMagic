@@ -16,6 +16,8 @@ from typing import Any, SupportsIndex, override
 
 from pydantic import BaseModel, model_validator
 
+from attrmagic.operators import Operators
+
 from . import MISSING
 from .utils import path_as_parts
 
@@ -187,3 +189,38 @@ class AttrPath(BaseModel):
     def depth(self):
         """Returns the number of parts in the path."""
         return len(self.parts)
+
+
+class QueryPath(BaseModel):
+    """Represents a query path."""
+
+    attr_path: AttrPath
+    operator: Operators = Operators.EXACT
+    _separator: str = "__"
+
+    @classmethod
+    def from_string(cls, value: str, *, separator: str = "__") -> "QueryPath":
+        """Creates a QueryPath instance from a string.
+
+        Args:
+            value: The string to convert.
+            separator: The separator to use.
+
+        Returns:
+            A QueryPath instance.
+        """
+        parts = list(path_as_parts(value, separator=separator))
+
+        operator_candidate = parts[-1].upper()
+        if operator_candidate not in Operators.__members__:
+            path = separator.join(parts)
+            return cls(
+                attr_path=AttrPath(value=path, separator=separator),
+                _separator=separator,
+            )
+        path = separator.join(parts[:-1])
+        return cls(
+            attr_path=AttrPath(value=path, separator=separator),
+            operator=Operators[operator_candidate],
+            _separator=separator,
+        )

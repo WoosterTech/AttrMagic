@@ -5,14 +5,13 @@ Classes:
     SearchBase: A generic root model for searching and filtering lists of ClassBase objects.
 """
 
-import re
 from collections.abc import Iterable
 from typing import Any, Generic, Self, SupportsIndex, TypeVar, overload, override
 
 from pydantic import BaseModel, RootModel, validate_call
 
 from . import MISSING
-from .core import AttrPath, getattr_path
+from .core import QueryPath, getattr_path
 from .operators import Operators
 
 
@@ -67,7 +66,11 @@ class SearchBase(RootModel[list[SearchRoot]], Generic[SearchRoot]):
     def __iter__(self):  # noqa: D105
         return iter(self.root)
 
-    def __getitem__(self, item: SupportsIndex | slice[Any, Any, Any]):  # noqa: D105
+    @overload
+    def __getitem__(self, item: SupportsIndex, /) -> SearchRoot: ...
+    @overload
+    def __getitem__(self, item: slice, /) -> list[SearchRoot]: ...
+    def __getitem__(self, item):  # noqa: D105
         return self.root[item]
 
     @overload
@@ -79,7 +82,7 @@ class SearchBase(RootModel[list[SearchRoot]], Generic[SearchRoot]):
 
     def get(self, *, default: Any | None = None, **kwargs) -> SearchRoot | None:
         """Return the item that matches the kwargs or the default value."""
-        items_list = self.filter(**kwargs)
+        items_list = self.model_copy().filter(**kwargs)
 
         if len(items_list) != 1:
             return default
@@ -98,29 +101,19 @@ class SearchBase(RootModel[list[SearchRoot]], Generic[SearchRoot]):
 
         return next(iter(kwargs.items()))
 
-    def _split_lhs(
-        self, lhs: str, *, separator: str = "__"
-    ) -> tuple[AttrPath, Operators]:
-        """Return tuple of lhs and operator."""
-        # pattern finds last group after last underscore
-        parts = lhs.split(separator)
-        if len(parts) == 1:
-            return AttrPath.str_to_path(lhs), Operators.EXACT
-        path = AttrPath.str_to_path(separator.join(parts[:-1]))
-        match_pattern = re.compile(r"^(\w+)_([^_]+)$")
-        matches = match_pattern.search(lhs)
-        if not matches:
-            raise ValueError(f"invalid path: {lhs}")
-
-        path = AttrPath.str_to_path(matches.group(1))
-        operator_name = matches.group(2).upper()
-        operator = Operators[operator_name]
-        return path, operator
+    # def _split_lhs(
+    #     self, lhs: str, *, separator: str = "__"
+    # ) -> tuple[AttrPath, Operators]:
+    #     """Return tuple of lhs and operator."""
+    #     # pattern finds last group after last underscore
+    #     query_path = QueryPath.from_string(lhs, separator=separator)
+    #     return query_path.attr_path, query_path.operator
 
     def _get_compare_tuple(self, **kwargs):
         """Return tuple of lhs, rhs, and operator."""
-        lhs, rhs = self._split_kwarg(kwargs)
-        lhs, operator = self._split_lhs(lhs)
+        lhs, rhs = self._split_kwarg(**kwargs)
+        query_path = QueryPath.from_string(lhs)
+        lhs, operator = query_path.attr_path, query_path.operator
 
         return lhs, rhs, operator
 

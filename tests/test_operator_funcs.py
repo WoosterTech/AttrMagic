@@ -3,6 +3,9 @@ from contextlib import nullcontext
 import pytest
 
 from attrmagic import operators
+from attrmagic.operators import R
+from datetime import datetime as dt
+from decimal import Decimal
 
 
 @pytest.mark.parametrize(
@@ -23,11 +26,25 @@ from attrmagic import operators
         (None, None, nullcontext(True)),
         ("hello", "hello", nullcontext(True)),
         ("hello", 45, nullcontext(False)),
+        ("hElLo", "hello", nullcontext(False)),
     ],
 )
 def test_equals(value, rhs, expected):
     with expected as e:
         assert operators.equals(value, rhs) == e
+
+
+@pytest.mark.parametrize(
+    "value, rhs, expected",
+    [
+        ("hElLo", "hello", nullcontext(True)),
+        ("hello", "hello", nullcontext(True)),
+        ("hElL", "hello", nullcontext(False)),
+    ],
+)
+def test_iequal(value, rhs, expected):
+    with expected as e:
+        assert operators.iequal(value, rhs) == e
 
 
 @pytest.mark.parametrize(
@@ -61,6 +78,7 @@ def test_not_equal(value, rhs, expected):
         (42, 42, nullcontext(False)),
         (42, 43, nullcontext(False)),
         (43, 42, nullcontext(True)),
+        (Decimal("43.1"), Decimal("42.9"), nullcontext(True)),
     ],
 )
 def test_greater_than(value, rhs, expected):
@@ -195,3 +213,18 @@ def test_endswith(value, rhs, expected):
 def test_iendswith(value, rhs, expected):
     with expected as e:
         assert operators.iendswith(value, rhs) == e
+
+
+@pytest.mark.parametrize(
+    ("value", "rhs", "expected"),
+    [
+        (42, (1, 100), nullcontext(True)),
+        (42, (1, 41), nullcontext(False)),
+        (42, (43, 100), nullcontext(False)),
+        (dt(2021, 1, 1), (dt(2021, 1, 1), dt(2021, 12, 31)), nullcontext(True)),
+        (dt(2021, 1, 1), (dt(2021, 1, 2), dt(2021, 12, 31)), nullcontext(False)),
+    ],
+)
+def test_range(value: R, rhs: tuple[R, R], expected):
+    with expected as e:
+        assert operators.range(value, rhs) == e

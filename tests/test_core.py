@@ -138,3 +138,19 @@ def test_attr_path_to_path():
     attr_path = core.AttrPath.str_to_path(path_str)
 
     assert attr_path is path_str
+
+
+def test_query_path():
+    query_path = core.QueryPath.from_string("a__b__c")
+    assert query_path.attr_path.render() == "a__b__c"
+    assert query_path.operator == core.Operators.EXACT
+    assert query_path._separator == "__"
+    assert query_path.attr_path.separator == "__"
+
+
+def test_query_path_iexact():
+    query_path = core.QueryPath.from_string("a__b__c__iexact")
+    assert query_path.attr_path.render() == "a__b__c"
+    assert query_path.operator == core.Operators.IEXACT
+    assert query_path._separator == "__"
+    assert query_path.attr_path.separator == "__"

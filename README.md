@@ -9,3 +9,9 @@ Inspired by [Django](https://www.djangoproject.com/)'s query structure.
 `foo = bar.filter(obj__name__in=["john", "smith"])`
 
 returns all objects in `bar` that have an object `obj` in them with an attribute `name` in the list.
+
+## Testing
+
+### Generate HTML Report
+
+`pytest --cov=attrmagic --cov-report html tests/`
