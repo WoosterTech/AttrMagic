@@ -5,7 +5,8 @@ from typing import Any
 import pytest
 from polyfactory.factories.pydantic_factory import ModelFactory
 
-from attrmagic import MISSING, core
+from attrmagic import core
+from attrmagic.sentinels import MISSING
 
 
 def test_getattr_path():

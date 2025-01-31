@@ -16,9 +16,9 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 
-requires-python = ">=3.12"
+requires-python = ">=3.11,<4.0"
 dependencies = [
-    "pydantic>=2.10.6",
+    "pydantic>=2.9",
 ]
 
 [project.urls]
@@ -48,13 +48,10 @@ version_files = ["src/attrmagic/__about__.py:__version__"]
 [tool.pytest.ini_options]
 minversion = "6.0"
 python_files = ["tests.py", "test_*.py"]
-addopts = "--cov=attrmagic --cov-report html"
+addopts = "--cov=attrmagic"
 
 [tool.mypy-mycode.tests]
 ignore_errors = true
-
-[tool.coverage.report]
-exclude_also = ["except ImportError:"]
 
 [dependency-groups]
 dev = [

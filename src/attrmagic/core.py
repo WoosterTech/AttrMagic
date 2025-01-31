@@ -18,7 +18,7 @@ from pydantic import BaseModel, model_validator
 
 from attrmagic.operators import Operators
 
-from . import MISSING
+from .sentinels import MISSING
 from .utils import path_as_parts
 
 

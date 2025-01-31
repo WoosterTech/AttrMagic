@@ -10,9 +10,9 @@ from typing import Any, Generic, Self, SupportsIndex, TypeVar, overload, overrid
 
 from pydantic import BaseModel, RootModel, validate_call
 
-from . import MISSING
 from .core import QueryPath, getattr_path
 from .operators import Operators
+from .sentinels import MISSING
 
 
 class ClassBase(BaseModel):
