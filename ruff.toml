@@ -1,0 +1,20 @@
+target-version = "py312"
+
+[lint]
+extend-select = ["B", "C90", "D", "RUF", "UP"]
+exclude = ["__about__.py"]
+
+[lint.flake8-type-checking]
+runtime-evaluated-base-classes = ["pydantic.BaseModel"]
+quote-annotations = true
+
+[lint.pydocstyle]
+convention = "google"
+
+[lint.per-file-ignores]
+"!src/**.py" = ["D"]
+
+[format]
+quote-style = "double"
+docstring-code-format = true
+docstring-code-line-length = "dynamic"
