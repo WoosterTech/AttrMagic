@@ -6,11 +6,12 @@ Classes:
 """
 
 from collections.abc import Iterable
+from functools import cached_property
 from typing import Any, Generic, Self, SupportsIndex, TypeVar, overload, override
 
-from pydantic import BaseModel, RootModel, validate_call
+from pydantic import BaseModel, RootModel
 
-from .core import QueryPath, getattr_path
+from .core import AttrPath, QueryPath, getattr_path
 from .operators import Operators
 from .sentinels import MISSING
 
@@ -44,32 +45,65 @@ class ClassBase(BaseModel):
         )
 
 
-SearchRoot = TypeVar("SearchRoot", bound=ClassBase)
+SimpleBase = TypeVar("SimpleBase")
 
+
+class SimpleBaseGenericList(list[SimpleBase], Generic[SimpleBase]): ...  # noqa: D101
+
+
+class SimpleBaseGenericDict(dict[str, SimpleBase], Generic[SimpleBase]): ...  # noqa: D101
+
+
+SimpleBaseGeneric = TypeVar(
+    "SimpleBaseGeneric",
+    SimpleBaseGenericList,
+    SimpleBaseGenericDict,
+)
+
+
+class Filter(BaseModel, Generic[SimpleBase]):
+    """A filter that can be applied to a list of objects."""
+
+    path: QueryPath
+    value: Any
+
+    @cached_property
+    def attr_path(self) -> AttrPath:
+        """Get the attribute path."""
+        return self.path.attr_path
+
+    @cached_property
+    def operator(self) -> Operators:
+        """Get the operator."""
+        return self.path.operator
+
+    @classmethod
+    def from_kwarg(cls, **kwargs) -> list[Self]:
+        """Create a filter from a kwarg."""
+
+        def qp(path: str) -> QueryPath:
+            return QueryPath.from_string(path)
+
+        return [cls(path=qp(path), value=value) for path, value in kwargs.items()]
+
+    def evaluate(self, item: SimpleBase) -> bool:
+        """Evaluate the filter against an item."""
+        value = getattr_path(item, self.attr_path)
+        return self.operator.evaluate(value, self.value)
+
+
+SearchRoot = TypeVar("SearchRoot", bound=ClassBase)
 _T = TypeVar("_T")
 
 
-class SearchBase(RootModel[list[SearchRoot]], Generic[SearchRoot]):
-    """A generic root model for searching and filtering lists of ClassBase objects.
-
-    Example:
-    ```
-    >>> class Foo(ClassBase):
-    ...     a: int
-    ...
-    >>> search = SearchBase([Foo(a=1), Foo(a=2), Foo(a=3)])
-    >>> search.filter(a__gt=1)
-    SearchBase([Foo(a=2), Foo(a=3)])
-    ```
-    """
-
+class SimpleRoot(RootModel[list[SimpleBase]], Generic[SimpleBase]):  # noqa: D101
     def __iter__(self):  # noqa: D105
         return iter(self.root)
 
     @overload
-    def __getitem__(self, item: SupportsIndex, /) -> SearchRoot: ...
+    def __getitem__(self, item: SupportsIndex, /) -> SimpleBase: ...
     @overload
-    def __getitem__(self, item: slice, /) -> list[SearchRoot]: ...
+    def __getitem__(self, item: slice, /) -> list[SimpleBase]: ...
     def __getitem__(self, item):  # noqa: D105
         return self.root[item]
 
@@ -80,81 +114,53 @@ class SearchBase(RootModel[list[SearchRoot]], Generic[SearchRoot]):
     def __setitem__(self, key, value):  # noqa: D105
         self.root[key] = value
 
-    def get(self, *, default: Any | None = None, **kwargs) -> SearchRoot | None:
-        """Return the item that matches the kwargs or the default value."""
-        items_list = self.model_copy().filter(**kwargs)
+    def _get_filters(self, **kwargs) -> list[Filter[SimpleBase]]:
+        return Filter.from_kwarg(**kwargs)
 
-        if len(items_list) != 1:
-            return default
+    def _filter_list(self, filters: Iterable[Filter[SimpleBase]]) -> Self:
+        assert isinstance(self.root, list), "_filter_list requires that root is a list"
+        for filter in filters:
+            self.root = [item for item in self.root if filter.evaluate(item)]
+        return self
 
-        return items_list[0]
-
-    def _compare(self, item: SearchRoot, lhs: str, rhs: Any, operator: Operators):
-        value = item.getattr_path(attr_path=lhs)
-        return operator.evaluate(value, rhs)
-
-    def _split_kwarg(self, **kwargs) -> tuple[str, Any]:
-        """Return tuple of lhs and rhs."""
-        if len(kwargs) > 1:
-            msg = "only one kwarg is allowed beyond default"
-            raise ValueError(msg)
-
-        return next(iter(kwargs.items()))
-
-    # def _split_lhs(
-    #     self, lhs: str, *, separator: str = "__"
-    # ) -> tuple[AttrPath, Operators]:
-    #     """Return tuple of lhs and operator."""
-    #     # pattern finds last group after last underscore
-    #     query_path = QueryPath.from_string(lhs, separator=separator)
-    #     return query_path.attr_path, query_path.operator
-
-    def _get_compare_tuple(self, **kwargs):
-        """Return tuple of lhs, rhs, and operator."""
-        lhs, rhs = self._split_kwarg(**kwargs)
-        query_path = QueryPath.from_string(lhs)
-        lhs, operator = query_path.attr_path, query_path.operator
-
-        return lhs, rhs, operator
-
-    @validate_call
     def filter(self, **kwargs) -> Self:
         """Find items that match the kwargs.
 
         Example:
         ```
-        >>> search = SearchBase([Foo(a=1), Foo(a=2), Foo(a=3)])
+        >>> search = SimpleRoot[list[Foo]](root=[Foo(a=1), Foo(a=2), Foo(a=3)])
         >>> search.filter(a__gt=1)
-        SearchBase([Foo(a=2), Foo(a=3)])
+        SearchRoot([Foo(a=2), Foo(a=3)])
+        >>> search = SimpleRoot[list[int]](root=[1, 2, 3])
+        >>> search.filter(gt=1)
+        SimpleRoot([2, 3])
         ```
 
         Args:
             kwargs: The attributes to filter by.
         """
-        lhs, rhs, operator = self._get_compare_tuple(**kwargs)
+        filters = self._get_filters(**kwargs)
+        assert isinstance(self.root, list), "root must be a list"
+        return self._filter_list(filters)
 
-        self.root = [
-            item for item in self.root if self._compare(item, lhs, rhs, operator)
-        ]
-        return self
+    def get(self, *, default: Any | None = MISSING, **kwargs) -> SimpleBase | None:
+        """Return the item that matches the kwargs or the default value."""
+        items_list = self.model_copy().filter(**kwargs)
 
-    def exclude(self, **kwargs) -> Self:
-        """Remove items that match the kwargs."""
-        lhs, rhs, operator = self._get_compare_tuple(**kwargs)
+        if len(items_list) != 1:
+            if default is MISSING:
+                raise ValueError("get() returned more than one item")
+            return default
 
-        self.root = [
-            item for item in self.root if not self._compare(item, lhs, rhs, operator)
-        ]
+        return items_list[0]
 
-        return self
-
-    def append(self, item: SearchRoot):
+    def append(self, item: SimpleBase):
         """Append an item to the end of class."""
         self.root.append(item)
 
-    def __add__(self, other: "SearchBase | Iterable[SearchRoot]") -> Self:  # noqa: D105
+    def __add__(self, other: "SimpleRoot | Iterable[SimpleBase]") -> Self:  # noqa: D105
         match other:
-            case SearchBase():
+            case SimpleRoot():
                 self.root += other.root
             case Iterable():
                 self.root += list(other)
@@ -170,3 +176,67 @@ class SearchBase(RootModel[list[SearchRoot]], Generic[SearchRoot]):
     @override
     def __repr__(self):
         return f"{self.__class__.__name__}({self.root})"
+
+
+class SearchBase(SimpleRoot[SearchRoot], Generic[SearchRoot]):
+    """A generic root model for searching and filtering lists of ClassBase objects.
+
+    Example:
+    ```
+    >>> class Foo(ClassBase):
+    ...     a: int
+    ...
+    >>> search = SearchBase([Foo(a=1), Foo(a=2), Foo(a=3)])
+    >>> search.filter(a__gt=1)
+    SearchBase([Foo(a=2), Foo(a=3)])
+    ```
+    """
+
+    def _compare(self, item: SearchRoot, lhs: str, rhs: Any, operator: Operators):
+        value = item.getattr_path(attr_path=lhs)
+        return operator.evaluate(value, rhs)
+
+    def _split_kwarg(self, **kwargs) -> tuple[str, Any]:
+        """Return tuple of lhs and rhs."""
+        assert len(kwargs) <= 1, "only one kwarg is allowed beyond default"
+
+        return next(iter(kwargs.items()))
+
+    def _get_compare_tuple(self, **kwargs):
+        """Return tuple of lhs, rhs, and operator."""
+        lhs, rhs = self._split_kwarg(**kwargs)
+        query_path = QueryPath.from_string(lhs)
+        lhs, operator = query_path.attr_path, query_path.operator
+
+        return lhs, rhs, operator
+
+    # @validate_call
+    # def filter(self, **kwargs) -> Self:
+    #     """Find items that match the kwargs.
+
+    #     Example:
+    #     ```
+    #     >>> search = SearchBase([Foo(a=1), Foo(a=2), Foo(a=3)])
+    #     >>> search.filter(a__gt=1)
+    #     SearchBase([Foo(a=2), Foo(a=3)])
+    #     ```
+
+    #     Args:
+    #         kwargs: The attributes to filter by.
+    #     """
+    #     lhs, rhs, operator = self._get_compare_tuple(**kwargs)
+
+    #     self.root = [
+    #         item for item in self.root if self._compare(item, lhs, rhs, operator)
+    #     ]
+    #     return self
+
+    def exclude(self, **kwargs) -> Self:
+        """Remove items that match the kwargs."""
+        lhs, rhs, operator = self._get_compare_tuple(**kwargs)
+
+        self.root = [
+            item for item in self.root if not self._compare(item, lhs, rhs, operator)
+        ]
+
+        return self

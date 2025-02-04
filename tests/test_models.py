@@ -1,4 +1,5 @@
 import pytest
+
 from attrmagic.models import ClassBase, SearchBase
 
 
@@ -85,11 +86,11 @@ def test_searchbase_setitem(bar_search: BarSearch):
 
 def test_searchbase_get(bar_search: BarSearch):
     assert bar_search.get(c__exact=2) == bar_search[1]
-    assert bar_search.get(c__exact=4) is None
+    with pytest.raises(ValueError):
+        assert bar_search.get(c__exact=4) is None
     assert bar_search.get(c__exact=4, default=bar_search[0]) == bar_search[0]
     assert bar_search.get(c=2) == bar_search[1]
-    with pytest.raises(ValueError):
-        bar_search.get(c=2, c__exact=2)
+    assert bar_search.get(c=2, c__exact=2) == bar_search[1]
 
 
 def test_repr(bar_search):
