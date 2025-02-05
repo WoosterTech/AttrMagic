@@ -1,6 +1,6 @@
 [project]
 name = "AttrMagic"
-version = "0.1.1b2"
+dynamic = ["version"]
 description = "Query-like access to nested attributes"
 readme = "README.md"
 license = "MIT"
@@ -20,7 +20,7 @@ classifiers = [
 
 requires-python = ">=3.11,<4.0"
 dependencies = [
-    "pydantic>=2.7",  # older versions fail tests
+    "pydantic>=2.7", # older versions fail tests
     # - required types are available in 3.12;
     # - dependent packages will force a newer version than 4.5, this is here to avoid transience
     #   - override was changed in version 4.5.0 per
@@ -44,10 +44,11 @@ path = "src/attrmagic/__about__.py"
 managed = true
 
 [tool.commitizen]
+version = "0.1.1b2"
 name = "cz_conventional_commits"
 tag_format = "$version"
 version_scheme = "pep440"
-version_provider = "pep621"
+version_provider = "commitizen"
 update_changelog_on_bump = true
 major_version_zero = true
 version_files = ["src/attrmagic/__about__.py:__version__"]

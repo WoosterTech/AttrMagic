@@ -30,7 +30,6 @@ wheels = [
 
 [[package]]
 name = "attrmagic"
-version = "0.1.1b2"
 source = { editable = "." }
 dependencies = [
     { name = "pydantic" },
