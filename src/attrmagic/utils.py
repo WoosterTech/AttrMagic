@@ -9,10 +9,18 @@ Functions:
 """
 
 import functools
+import sys
 from collections import deque
 from collections.abc import Callable
 from decimal import Decimal, InvalidOperation
 from typing import TypeVar
+
+__all__ = ["override"]
+
+if sys.version_info >= (3, 12):  # pragma: no cover
+    from typing import override
+else:  # pragma: no cover
+    from typing_extensions import override
 
 
 def path_as_parts(path: str, *, separator: str = "__") -> deque[str]:

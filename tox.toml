@@ -1,0 +1,31 @@
+requires = ["tox>=4"]
+envlist = [
+    "py311-lowest",
+    "py311",
+    "py312-lowest",
+    "py312",
+    "py313",
+    "pre-commit"
+]
+
+[env_run_base]
+runner = "uv-venv-lock-runner"
+description = "Run tests with *latest* compatible dependency versions"
+dependency_groups = ["dev", "test"]
+commands = [["pytest", { replace = "posargs", default = ["tests"], extend = true}]]
+
+[env.py311-lowest]
+description = "Run tests with *lowest* compatible dependency versions"
+runner = "uv-venv-runner"
+uv_resolution = "lowest-direct"
+
+[env.py312-lowest]
+description = "Run tests with *lowest* compatible dependency versions"
+runner = "uv-venv-runner"
+uv_resolution = "lowest-direct"
+
+
+[env.pre-commit]
+description = "Run pre-commit hooks"
+deps = ["pre-commit"]
+commands = [["pre-commit", "run", "--all-files", "--show-diff-on-failure"]]

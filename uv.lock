@@ -30,9 +30,11 @@ wheels = [
 
 [[package]]
 name = "attrmagic"
+version = "0.1.1b2"
 source = { editable = "." }
 dependencies = [
     { name = "pydantic" },
+    { name = "typing-extensions", marker = "python_full_version < '3.12'" },
 ]
 
 [package.dev-dependencies]
@@ -55,7 +57,10 @@ test = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "pydantic", specifier = ">=2.9" }]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2.7" },
+    { name = "typing-extensions", marker = "python_full_version < '3.12'", specifier = ">=4.5" },
+]
 
 [package.metadata.requires-dev]
 dev = [

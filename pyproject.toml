@@ -1,7 +1,7 @@
 [project]
 name = "AttrMagic"
-dynamic = ["version"]
-description = "Add your description here"
+version = "0.1.1b2"
+description = "Query-like access to nested attributes"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE.md"]
@@ -13,12 +13,19 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
 
 requires-python = ">=3.11,<4.0"
 dependencies = [
-    "pydantic>=2.9",
+    "pydantic>=2.7",  # older versions fail tests
+    # - required types are available in 3.12;
+    # - dependent packages will force a newer version than 4.5, this is here to avoid transience
+    #   - override was changed in version 4.5.0 per
+    #     https://typing-extensions.readthedocs.io/en/latest/#typing_extensions.override
+    "typing-extensions>=4.5 ; python_full_version < '3.12'",
 ]
 
 [project.urls]
@@ -71,3 +78,6 @@ test = [
 docs = [
     "mkdocs>=1.6.1",
 ]
+
+[tool.deptry]
+known_first_party = ["attrmagic"]

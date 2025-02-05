@@ -12,14 +12,14 @@ Exceptions:
 """
 
 from collections import deque
-from typing import Any, SupportsIndex, override
+from typing import Any, SupportsIndex
 
 from pydantic import BaseModel, model_validator
 
 from attrmagic.operators import Operators
 
 from .sentinels import MISSING
-from .utils import path_as_parts
+from .utils import override, path_as_parts
 
 
 def getattr_path(
@@ -120,14 +120,19 @@ class AttrPath(BaseModel):
             if isinstance(data["value"], str):
                 return data
 
-            default_separator_field = cls.__pydantic_fields__.get("separator")
-            default_separator = (
-                default_separator_field.default if default_separator_field else None
+            separator = (
+                data["separator"]
+                if "separator" in data
+                else cls.get_field_default("separator")
             )
-            separator = data.get("separator") or default_separator
-            assert separator is not None, "separator is required"
             data["value"] = separator.join(data["value"])
         return data
+
+    @classmethod
+    def get_field_default(cls, field_name: str):
+        """Returns the default value for the specified field."""
+        fields = cls.model_fields
+        return next(fields[name] for name in fields if name == field_name).default
 
     @classmethod
     def str_to_path(
@@ -182,7 +187,7 @@ class AttrPath(BaseModel):
         return self.separator.join(self.parts)
 
     @override
-    def __str__(self):
+    def __str__(self):  # noqa: D105
         return self.render()
 
     @property

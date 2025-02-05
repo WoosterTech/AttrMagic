@@ -7,13 +7,14 @@ Classes:
 
 from collections.abc import Iterable
 from functools import cached_property
-from typing import Any, Generic, Self, SupportsIndex, TypeVar, overload, override
+from typing import Any, Generic, Self, SupportsIndex, TypeVar, overload
 
 from pydantic import BaseModel, RootModel
 
 from .core import AttrPath, QueryPath, getattr_path
 from .operators import Operators
 from .sentinels import MISSING
+from .utils import override
 
 
 class ClassBase(BaseModel):
@@ -170,11 +171,11 @@ class SimpleRoot(RootModel[list[SimpleBase]], Generic[SimpleBase]):  # noqa: D10
         return self
 
     @override
-    def __len__(self):
+    def __len__(self):  # noqa: D105
         return len(self.root)
 
     @override
-    def __repr__(self):
+    def __repr__(self):  # noqa: D105
         return f"{self.__class__.__name__}({self.root})"
 
 
