@@ -9,9 +9,9 @@ envlist = [
 ]
 
 [gh.python]
-"3.13" = ["py313"]
-"3.12" = ["py312"]
-"3.11" = ["py311"]
+"3.13" = ["3.13"]
+"3.12" = ["3.12"]
+"3.11" = ["3.11"]
 
 [env_run_base]
 runner = "uv-venv-lock-runner"
