@@ -28,6 +28,7 @@ from datetime import datetime
 from decimal import Decimal
 from enum import Enum, member
 from typing import TypeVar
+from warnings import warn
 
 # from .utils import validate_call_lex
 from pydantic import validate_call
@@ -338,6 +339,31 @@ class Operators(Enum):
     ENDSWITH = member(endswith)
     IENDSWITH = member(iendswith)
     RANGE = member(range)
+    EQUAL = member(equals)
+    IEQUAL = member(iequal)
+
+    @property
+    def value(self):
+        """Get the value of the operator.
+
+        Remove when EQUAL and IEQUAL are removed.
+        """
+        match self:
+            case Operators.EQUAL:
+                warn(
+                    f"{self} is deprecated, use {Operators.EXACT} instead",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+            case Operators.IEQUAL:
+                warn(
+                    f"{self} is deprecated, use {Operators.IEXACT} instead",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+            case _:
+                pass
+        return super().value
 
     def evaluate(self, value: T, rhs: T) -> bool:
         """Evaluate the operator.
