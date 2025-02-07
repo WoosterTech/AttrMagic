@@ -1,3 +1,9 @@
+## 0.1.1b4 (2025-02-07)
+
+### Fix
+
+- **Operators**: add `EQUAL` and `IEQUAL` with deprecation warning to use `EXACT` and `IEXACT`, respectively
+
 ## 0.1.1b3 (2025-02-05)
 
 ## 0.1.1b2 (2025-02-04)
