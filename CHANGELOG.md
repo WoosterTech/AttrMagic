@@ -1,3 +1,9 @@
+## 0.1.1b5 (2025-02-19)
+
+### Refactor
+
+- **SimpleRoot**: add overloads to SimpleRoot.get to improve type hinting; better exception messages when len(get()) != 1
+
 ## 0.1.1b4 (2025-02-07)
 
 ### Fix
