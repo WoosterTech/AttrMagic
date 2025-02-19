@@ -91,6 +91,7 @@ def test_searchbase_get(bar_search: BarSearch):
     assert bar_search.get(c__exact=4, default=bar_search[0]) == bar_search[0]
     assert bar_search.get(c=2) == bar_search[1]
     assert bar_search.get(c=2, c__exact=2) == bar_search[1]
+    assert bar_search.get(c__exact=4, default=None) is None
 
 
 def test_repr(bar_search):

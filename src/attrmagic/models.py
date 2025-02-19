@@ -7,13 +7,13 @@ Classes:
 
 from collections.abc import Iterable
 from functools import cached_property
-from typing import Any, Generic, Self, SupportsIndex, TypeVar, overload
+from typing import Any, Generic, Literal, Self, SupportsIndex, TypeVar, overload
 
 from pydantic import BaseModel, RootModel
 
 from .core import AttrPath, QueryPath, getattr_path
 from .operators import Operators
-from .sentinels import MISSING
+from .sentinels import MISSING, Missing
 from .utils import override
 
 
@@ -96,6 +96,8 @@ class Filter(BaseModel, Generic[SimpleBase]):
 SearchRoot = TypeVar("SearchRoot", bound=ClassBase)
 _T = TypeVar("_T")
 
+_DefaultT = TypeVar("_DefaultT")
+
 
 class SimpleRoot(RootModel[list[SimpleBase]], Generic[SimpleBase]):  # noqa: D101
     def __iter__(self):  # noqa: D105
@@ -144,13 +146,37 @@ class SimpleRoot(RootModel[list[SimpleBase]], Generic[SimpleBase]):  # noqa: D10
         assert isinstance(self.root, list), "root must be a list"
         return self._filter_list(filters)
 
-    def get(self, *, default: Any | None = MISSING, **kwargs) -> SimpleBase | None:
-        """Return the item that matches the kwargs or the default value."""
+    @overload
+    def get(
+        self, *, default: SimpleBase | Missing = MISSING, **kwargs: Any
+    ) -> SimpleBase: ...
+    @overload
+    def get(self, *, default: Literal[None], **kwargs: Any) -> SimpleBase | None: ...
+    @overload
+    def get(
+        self, *, default: SimpleBase | Missing | None, **kwargs: Any
+    ) -> SimpleBase | None: ...
+    def get(
+        self,
+        *,
+        default=MISSING,
+        **kwargs,
+    ):
+        """Return the item that matches the kwargs or the default value.
+
+        Raises:
+            ValueError: If 0 or more than 1 items are returned.
+        """
         items_list = self.model_copy().filter(**kwargs)
 
-        if len(items_list) != 1:
+        if (list_len := len(items_list)) != 1:
             if default is MISSING:
-                raise ValueError("get() returned more than one item")
+                match list_len:
+                    case 0:
+                        msg = "get() returned no items"
+                    case _:
+                        msg = "get() returned more than one item"
+                raise ValueError(msg)
             return default
 
         return items_list[0]
@@ -210,27 +236,6 @@ class SearchBase(SimpleRoot[SearchRoot], Generic[SearchRoot]):
         lhs, operator = query_path.attr_path, query_path.operator
 
         return lhs, rhs, operator
-
-    # @validate_call
-    # def filter(self, **kwargs) -> Self:
-    #     """Find items that match the kwargs.
-
-    #     Example:
-    #     ```
-    #     >>> search = SearchBase([Foo(a=1), Foo(a=2), Foo(a=3)])
-    #     >>> search.filter(a__gt=1)
-    #     SearchBase([Foo(a=2), Foo(a=3)])
-    #     ```
-
-    #     Args:
-    #         kwargs: The attributes to filter by.
-    #     """
-    #     lhs, rhs, operator = self._get_compare_tuple(**kwargs)
-
-    #     self.root = [
-    #         item for item in self.root if self._compare(item, lhs, rhs, operator)
-    #     ]
-    #     return self
 
     def exclude(self, **kwargs) -> Self:
         """Remove items that match the kwargs."""
