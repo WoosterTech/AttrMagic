@@ -33,7 +33,7 @@ from warnings import warn
 # from .utils import validate_call_lex
 from pydantic import validate_call
 
-from attrmagic.utils import validate_call_lex
+from .utils import validate_call_lex
 
 T = TypeVar("T", Decimal, float, str)
 

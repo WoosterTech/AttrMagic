@@ -16,7 +16,7 @@ from typing import Any, SupportsIndex
 
 from pydantic import BaseModel, model_validator
 
-from attrmagic.operators import Operators
+from .operators import Operators
 
 from .sentinels import MISSING
 from .utils import override, path_as_parts
