@@ -5,7 +5,7 @@ Classes:
     SearchBase: A generic root model for searching and filtering lists of ClassBase objects.
 """
 
-from collections.abc import Iterable
+from collections.abc import Hashable, Iterable, Iterator
 from functools import cached_property
 from typing import Any, Generic, Literal, Self, SupportsIndex, TypeVar, overload
 
@@ -203,6 +203,94 @@ class SimpleRoot(RootModel[list[SimpleBase]], Generic[SimpleBase]):  # noqa: D10
     @override
     def __repr__(self):  # noqa: D105
         return f"{self.__class__.__name__}({self.root})"
+
+
+_R = TypeVar("_R", bound=Hashable)
+_KT = TypeVar("_KT")
+_VT = TypeVar("_VT")
+
+
+class SimpleDict(RootModel[dict[_KT, _VT]], Generic[_KT, _VT]):
+    """An implementation of Pydantic's BaseModel for dictionaries.
+
+    Adds (most) methods from the built-in dict class.
+    """
+
+    def __len__(self) -> int:
+        """Return the number of items in the dictionary."""
+        return len(self.root)
+
+    def keys(self):
+        """Return a new view of the dictionary's keys."""
+        return self.root.keys()
+
+    def values(self):
+        """Return a new view of the dictionary's values."""
+        return self.root.values()
+
+    def items(self):
+        """Return a new view of the dictionary's items (key, value)."""
+        return self.root.items()
+
+    @overload  # type: ignore[override]
+    def get(self, key: _KT, /) -> _VT | None: ...
+    @overload
+    def get(self, key: _KT, default: _VT, /) -> _VT: ...
+    @overload
+    def get(self, key: _KT, default: _T, /) -> _VT | _T: ...
+    def get(
+        self, key: _KT, default: _T | _VT | Missing = MISSING, /
+    ) -> _VT | _T | None:
+        """Return the value for key if key is in the dictionary, else default.
+
+        Args:
+            key: The key to get.
+            default: The default value to return if the key is not found.
+        """
+        normal_default = default if default is not MISSING else None
+
+        return self.root.get(key, normal_default)
+
+    @overload
+    def pop(self, key: _KT, /) -> _VT: ...
+    @overload
+    def pop(self, key: _KT, default: _VT, /) -> _VT: ...
+    @overload
+    def pop(self, key: _KT, default: _T, /) -> _VT | _T: ...
+    def pop(self, key: _KT, default: _T | _VT | Missing = MISSING, /) -> _VT | _T:
+        """Remove specified key and return the corresponding value.
+
+        Args:
+            key: The key to remove.
+            default: The default value to return if the key is not found.
+        """
+        if default is MISSING:
+            return self.root.pop(key)
+        return self.root.pop(key, default)
+
+    def __getitem__(self, key: _KT) -> _VT:
+        """Return the value for key."""
+        return self.root[key]
+
+    def __setitem__(self, key: _KT, value: _VT) -> None:
+        """Set the value for key."""
+        self.root[key] = value
+
+    def __delitem__(self, key: _KT) -> None:
+        """Delete self[key]."""
+        del self.root[key]
+
+    def __eq__(self, value: object, /) -> bool:
+        """Return self==value."""
+        return self.root == value
+
+    def __reversed__(self) -> Iterator[_KT]:
+        """Return a reverse iterator over the keys of the dictionary."""
+        return reversed(self.root)
+
+
+class SimpleDictStr(RootModel[dict[str, _VT]], Generic[_VT]):  # noqa: D101
+    pass
 
 
 class SearchBase(SimpleRoot[SearchRoot], Generic[SearchRoot]):
