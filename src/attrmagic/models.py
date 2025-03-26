@@ -300,6 +300,11 @@ class SimpleDict(RootModel[dict[_KT, _VT]], Generic[_KT, _VT]):
         """Return a reverse iterator over the keys of the dictionary."""
         return reversed(self.root)
 
+    def filter_by_key(self, values: Iterable[_KT]) -> Self:
+        """Return a new dictionary with only the specified keys."""
+        self.root = {key: value for key, value in self.root.items() if key in values}
+        return self
+
 
 class SimpleDictStr(RootModel[dict[str, _VT]], Generic[_VT]):  # noqa: D101
     pass
