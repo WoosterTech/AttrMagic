@@ -1,3 +1,9 @@
+## 0.2.0b1 (2025-03-26)
+
+### Feat
+
+- **SimpleDict**: new Generic RootModel
+
 ## 0.2.0b0 (2025-03-26)
 
 ### Feat

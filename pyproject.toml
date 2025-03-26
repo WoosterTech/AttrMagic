@@ -44,7 +44,7 @@ path = "src/attrmagic/__about__.py"
 managed = true
 
 [tool.commitizen]
-version = "0.2.0b0"
+version = "0.2.0b1"
 name = "cz_conventional_commits"
 tag_format = "$version"
 version_scheme = "pep440"
