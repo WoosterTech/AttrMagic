@@ -5,7 +5,7 @@ Classes:
     SearchBase: A generic root model for searching and filtering lists of ClassBase objects.
 """
 
-from collections.abc import Iterable
+from collections.abc import Hashable, Iterable, Iterator
 from functools import cached_property
 from typing import (
     TYPE_CHECKING,
@@ -217,80 +217,92 @@ class SimpleListRoot(RootModel[list[SimpleBase]], Generic[SimpleBase]):  # noqa:
         return f"{self.__class__.__name__}({self.root})"
 
 
-SimpleRoot = SimpleListRoot
+_R = TypeVar("_R", bound=Hashable)
+_KT = TypeVar("_KT")
+_VT = TypeVar("_VT")
 
-DictKeyT = TypeVar("DictKeyT")
 
+class SimpleDict(RootModel[dict[_KT, _VT]], Generic[_KT, _VT]):
+    """An implementation of Pydantic's BaseModel for dictionaries.
 
-class SimpleGenericRoot(
-    RootModel[dict[DictKeyT, SimpleBase]], Generic[DictKeyT, SimpleBase]
-):
-    """A root model for dictionaries providing dict-like methods."""
+    Adds (most) methods from the built-in dict class.
+    """
 
-    @override
-    def __len__(self):  # noqa: D105
+    def __len__(self) -> int:
+        """Return the number of items in the dictionary."""
         return len(self.root)
 
-    @override
-    def __repr__(self):  # noqa: D105
-        return f"{self.__class__.__name__}({self.root})"
-
-    def keys(self) -> "dict_keys[DictKeyT, SimpleBase]":
-        """Return the keys of the root."""
+    def keys(self) -> "dict_keys[_KT, _VT]":
+        """Return a new view of the dictionary's keys."""
         return self.root.keys()
 
-    def values(self) -> "dict_values[DictKeyT, SimpleBase]":
-        """Return the values of the root."""
+    def values(self) -> "dict_values[_KT, _VT]":
+        """Return a new view of the dictionary's values."""
         return self.root.values()
 
-    def items(self) -> "dict_items[DictKeyT, SimpleBase]":
-        """Return the items of the root."""
+    def items(self) -> "dict_items[_KT, _VT]":
+        """Return a new view of the dictionary's items (key, value)."""
         return self.root.items()
 
+    @overload  # type: ignore[override]
+    def get(self, key: _KT, /) -> _VT | None: ...
     @overload
-    def get(self, key: DictKeyT, /) -> SimpleBase | None:
-        return self.root.get(key)
+    def get(self, key: _KT, default: _VT, /) -> _VT: ...
+    @overload
+    def get(self, key: _KT, default: _T, /) -> _VT | _T: ...
+    def get(
+        self, key: _KT, default: _T | _VT | Missing = MISSING, /
+    ) -> _VT | _T | None:
+        """Return the value for key if key is in the dictionary, else default.
+
+        Args:
+            key: The key to get.
+            default: The default value to return if the key is not found.
+        """
+        normal_default = default if default is not MISSING else None
+
+        return self.root.get(key, normal_default)
 
     @overload
-    def get(self, key: DictKeyT, default: SimpleBase) -> SimpleBase: ...
+    def pop(self, key: _KT, /) -> _VT: ...
     @overload
-    def get(self, key: DictKeyT, default: _DefaultT) -> SimpleBase | _DefaultT: ...
-    def get(self, key, default=None) -> SimpleBase | _DefaultT:
-        """Return the value for the key or the default value."""
-        return self.root.get(key, default)
+    def pop(self, key: _KT, default: _VT, /) -> _VT: ...
+    @overload
+    def pop(self, key: _KT, default: _T, /) -> _VT | _T: ...
+    def pop(self, key: _KT, default: _T | _VT | Missing = MISSING, /) -> _VT | _T:
+        """Remove specified key and return the corresponding value.
 
-    @overload
-    def pop(self, key: DictKeyT, /) -> SimpleBase: ...
-    @overload
-    def pop(self, key: DictKeyT, default: SimpleBase) -> SimpleBase: ...
-    @overload
-    def pop(self, key: DictKeyT, default: _DefaultT) -> SimpleBase | _DefaultT: ...
-    def pop(self, key, default=None) -> SimpleBase | _DefaultT:
-        """Remove the key and return its value."""
+        Args:
+            key: The key to remove.
+            default: The default value to return if the key is not found.
+        """
+        if default is MISSING:
+            return self.root.pop(key)
         return self.root.pop(key, default)
 
-    def __getitem__(self, key: DictKeyT, /) -> SimpleBase:
-        """Return the value for the key."""
+    def __getitem__(self, key: _KT) -> _VT:
+        """Return the value for key."""
         return self.root[key]
 
-    def __setitem__(self, key: DictKeyT, value: SimpleBase) -> None:
-        """Set the value for the key."""
+    def __setitem__(self, key: _KT, value: _VT) -> None:
+        """Set the value for key."""
         self.root[key] = value
 
-    def __delitem__(self, key: DictKeyT, /) -> None:
-        """Delete the key."""
+    def __delitem__(self, key: _KT) -> None:
+        """Delete self[key]."""
         del self.root[key]
 
-    def update(
-        self,
-        other: "dict[DictKeyT, SimpleBase] | SimpleGenericRoot[DictKeyT, SimpleBase]",
-        /,
-        **kwargs,
-    ):
-        """Update the root with another dictionary."""
-        if isinstance(other, SimpleGenericRoot):
-            other = other.root
-        self.root.update(other, **kwargs)
+    def __eq__(self, value: object, /) -> bool:
+        """Return self==value."""
+        return self.root == value
+
+    def __reversed__(self) -> Iterator[_KT]:
+        """Return a reverse iterator over the keys of the dictionary."""
+        return reversed(self.root)
+
+
+class SimpleDictStr(RootModel[dict[str, _VT]], Generic[_VT]):  # noqa: D101
+    pass
 
 
 class SearchBase(SimpleListRoot[SearchRoot], Generic[SearchRoot]):

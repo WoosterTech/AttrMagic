@@ -1,6 +1,8 @@
+import enum
+
 import pytest
 
-from attrmagic.models import ClassBase, SearchBase
+from attrmagic.models import ClassBase, SearchBase, SimpleDict
 
 
 class Bar(ClassBase):
@@ -9,6 +11,15 @@ class Bar(ClassBase):
 
 class Foo(ClassBase):
     a: Bar
+
+
+class MyTestEnum(enum.Enum):
+    A = 1
+    B = 2
+    C = 3
+
+
+class SimpleDictTest(SimpleDict[str, MyTestEnum]): ...
 
 
 BarSearch = SearchBase[Bar]
@@ -96,3 +107,9 @@ def test_searchbase_get(bar_search: BarSearch):
 
 def test_repr(bar_search):
     assert repr(bar_search) == "SearchBase[Bar]([Bar(c=1), Bar(c=2), Bar(c=3)])"
+
+
+def test_simple_dict():
+    my_simple_dict = SimpleDictTest(root={"a": MyTestEnum.A, "b": MyTestEnum.B})
+
+    assert my_simple_dict["a"] == MyTestEnum.A
