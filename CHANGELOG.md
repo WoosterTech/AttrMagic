@@ -1,3 +1,9 @@
+## 0.2.0b2 (2025-03-26)
+
+### Feat
+
+- **SimpleDict.filter_by_key**: add new method to make filtering the root of a SimpleDict for keys in values
+
 ## 0.2.0b1 (2025-03-26)
 
 ### Feat
