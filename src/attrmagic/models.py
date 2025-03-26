@@ -7,7 +7,16 @@ Classes:
 
 from collections.abc import Iterable
 from functools import cached_property
-from typing import Any, Generic, Literal, Self, SupportsIndex, TypeVar, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Generic,
+    Literal,
+    Self,
+    SupportsIndex,
+    TypeVar,
+    overload,
+)
 
 from pydantic import BaseModel, RootModel
 
@@ -15,6 +24,9 @@ from .core import AttrPath, QueryPath, getattr_path
 from .operators import Operators
 from .sentinels import MISSING, Missing
 from .utils import override
+
+if TYPE_CHECKING:
+    from _collections_abc import dict_items, dict_keys, dict_values
 
 
 class ClassBase(BaseModel):
@@ -99,7 +111,7 @@ _T = TypeVar("_T")
 _DefaultT = TypeVar("_DefaultT")
 
 
-class SimpleRoot(RootModel[list[SimpleBase]], Generic[SimpleBase]):  # noqa: D101
+class SimpleListRoot(RootModel[list[SimpleBase]], Generic[SimpleBase]):  # noqa: D101
     def __iter__(self):  # noqa: D105
         return iter(self.root)
 
@@ -185,9 +197,9 @@ class SimpleRoot(RootModel[list[SimpleBase]], Generic[SimpleBase]):  # noqa: D10
         """Append an item to the end of class."""
         self.root.append(item)
 
-    def __add__(self, other: "SimpleRoot | Iterable[SimpleBase]") -> Self:  # noqa: D105
+    def __add__(self, other: "SimpleListRoot | Iterable[SimpleBase]") -> Self:  # noqa: D105
         match other:
-            case SimpleRoot():
+            case SimpleListRoot():
                 self.root += other.root
             case Iterable():
                 self.root += list(other)
@@ -205,7 +217,83 @@ class SimpleRoot(RootModel[list[SimpleBase]], Generic[SimpleBase]):  # noqa: D10
         return f"{self.__class__.__name__}({self.root})"
 
 
-class SearchBase(SimpleRoot[SearchRoot], Generic[SearchRoot]):
+SimpleRoot = SimpleListRoot
+
+DictKeyT = TypeVar("DictKeyT")
+
+
+class SimpleGenericRoot(
+    RootModel[dict[DictKeyT, SimpleBase]], Generic[DictKeyT, SimpleBase]
+):
+    """A root model for dictionaries providing dict-like methods."""
+
+    @override
+    def __len__(self):  # noqa: D105
+        return len(self.root)
+
+    @override
+    def __repr__(self):  # noqa: D105
+        return f"{self.__class__.__name__}({self.root})"
+
+    def keys(self) -> "dict_keys[DictKeyT, SimpleBase]":
+        """Return the keys of the root."""
+        return self.root.keys()
+
+    def values(self) -> "dict_values[DictKeyT, SimpleBase]":
+        """Return the values of the root."""
+        return self.root.values()
+
+    def items(self) -> "dict_items[DictKeyT, SimpleBase]":
+        """Return the items of the root."""
+        return self.root.items()
+
+    @overload
+    def get(self, key: DictKeyT, /) -> SimpleBase | None:
+        return self.root.get(key)
+
+    @overload
+    def get(self, key: DictKeyT, default: SimpleBase) -> SimpleBase: ...
+    @overload
+    def get(self, key: DictKeyT, default: _DefaultT) -> SimpleBase | _DefaultT: ...
+    def get(self, key, default=None) -> SimpleBase | _DefaultT:
+        """Return the value for the key or the default value."""
+        return self.root.get(key, default)
+
+    @overload
+    def pop(self, key: DictKeyT, /) -> SimpleBase: ...
+    @overload
+    def pop(self, key: DictKeyT, default: SimpleBase) -> SimpleBase: ...
+    @overload
+    def pop(self, key: DictKeyT, default: _DefaultT) -> SimpleBase | _DefaultT: ...
+    def pop(self, key, default=None) -> SimpleBase | _DefaultT:
+        """Remove the key and return its value."""
+        return self.root.pop(key, default)
+
+    def __getitem__(self, key: DictKeyT, /) -> SimpleBase:
+        """Return the value for the key."""
+        return self.root[key]
+
+    def __setitem__(self, key: DictKeyT, value: SimpleBase) -> None:
+        """Set the value for the key."""
+        self.root[key] = value
+
+    def __delitem__(self, key: DictKeyT, /) -> None:
+        """Delete the key."""
+        del self.root[key]
+
+    def update(
+        self,
+        other: "dict[DictKeyT, SimpleBase] | SimpleGenericRoot[DictKeyT, SimpleBase]",
+        /,
+        **kwargs,
+    ):
+        """Update the root with another dictionary."""
+        if isinstance(other, SimpleGenericRoot):
+            other = other.root
+        self.root.update(other, **kwargs)
+
+
+class SearchBase(SimpleListRoot[SearchRoot], Generic[SearchRoot]):
     """A generic root model for searching and filtering lists of ClassBase objects.
 
     Example:
