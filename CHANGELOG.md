@@ -1,3 +1,9 @@
+## 0.2.0b0 (2025-03-26)
+
+### Feat
+
+- **SimpleGenericRoot**: a rootmodel for dictionaries that provides most methods that the root dictionary would provide
+
 ## 0.1.1b5 (2025-02-19)
 
 ### Refactor
