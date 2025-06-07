@@ -20,7 +20,13 @@ from .utils import override
 class ClassBase(BaseModel):
     """Base pydantic class that adds the ability to get attributes by path."""
 
-    def getattr_path(self, attr_path, *, separator="__", default=MISSING) -> Any:
+    def getattr_path(  # pyright: ignore[reportAny]
+        self,
+        attr_path: str | AttrPath,
+        *,
+        separator: str = "__",
+        default: object = MISSING,
+    ) -> Any:  # pyright: ignore[reportExplicitAny]
         """Get an attribute path, as defined by a string separated by '__'.
 
         Example:
@@ -196,8 +202,7 @@ class SimpleRoot(RootModel[list[SimpleBase]], Generic[SimpleBase]):  # noqa: D10
 
         return self
 
-    @override
-    def __len__(self):  # noqa: D105
+    def __len__(self) -> int:  # noqa: D105
         return len(self.root)
 
     @override
@@ -280,7 +285,8 @@ class SimpleDict(RootModel[dict[_KT, _VT]], Generic[_KT, _VT]):
         """Delete self[key]."""
         del self.root[key]
 
-    def __eq__(self, value: object, /) -> bool:
+    @override
+    def __eq__(self, value: object) -> bool:
         """Return self==value."""
         return self.root == value
 
