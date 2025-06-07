@@ -5,9 +5,7 @@ description = "Query-like access to nested attributes"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE.md"]
-authors = [
-    { name = "Karl Wooster", email = "karl@woostertech.com" }
-]
+authors = [{ name = "Karl Wooster", email = "karl@woostertech.com" }]
 keywords = ["pydantic", "path", "attributes"]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -76,9 +74,7 @@ test = [
     "pytest-cov>=6.0.0",
     "pytest-sugar>=1.0.0",
 ]
-docs = [
-    "mkdocs>=1.6.1",
-]
+docs = ["mkdocs>=1.6.1"]
 
 [tool.deptry]
 known_first_party = ["attrmagic"]
