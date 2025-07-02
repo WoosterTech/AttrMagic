@@ -5,11 +5,12 @@ Classes:
     SearchBase: A generic root model for searching and filtering lists of ClassBase objects.
 """
 
-from collections.abc import Hashable, Iterable, Iterator
+from collections.abc import Hashable, Iterable, Iterator, Mapping
 from functools import cached_property
-from typing import Generic, Literal, Self, SupportsIndex, TypeVar, overload
+from typing import Generic, Literal, Self, SupportsIndex, TypeVar, cast, overload
 
 from pydantic import BaseModel, RootModel
+from pydantic_core.core_schema import ListSchema, ModelSchema
 
 from attrmagic.core import AttrPath, QueryPath, getattr_path
 from attrmagic.operators import Operators
@@ -97,6 +98,13 @@ class Filter(BaseModel, Generic[SimpleBase]):
 SearchRoot = TypeVar("SearchRoot", bound=ClassBase)
 
 
+def _get_or_raise(obj: Mapping[str, _T], attr: str) -> _T:
+    result = obj[attr]
+    if result is None:
+        raise AttributeError(f"Attribute '{attr}' not found in {obj}")
+    return result
+
+
 class SimpleRoot(RootModel[list[SimpleBase]], Generic[SimpleBase]):  # noqa: D101
     @override
     def __iter__(self):  # noqa: D105  # pyright: ignore[reportIncompatibleMethodOverride]
@@ -135,6 +143,14 @@ class SimpleRoot(RootModel[list[SimpleBase]], Generic[SimpleBase]):  # noqa: D10
                 item for item in self.root if filter.evaluate(item)
             ]
         return self
+
+    @property
+    def base_type(self) -> type[SimpleBase]:
+        """Get the base type of the items in the root list."""
+        core_schema = self.__class__.__pydantic_core_schema__
+        schema = cast("ListSchema", _get_or_raise(core_schema, "schema"))
+        items_schema = cast("ModelSchema", _get_or_raise(schema, "items_schema"))
+        return cast("type[SimpleBase]", _get_or_raise(items_schema, "cls"))
 
     def filter(self, **kwargs: object) -> Self:
         """Find items that match the kwargs.
