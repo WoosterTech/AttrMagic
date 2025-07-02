@@ -23,35 +23,37 @@ Functions:
     range: Check if value is within a range.
 """
 
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from datetime import datetime
 from decimal import Decimal
 from enum import Enum, member
-from typing import TypeVar
-from warnings import warn
+from typing import TYPE_CHECKING, TypeVar, override
 
 # from .utils import validate_call_lex
 from pydantic import validate_call
 
 from attrmagic.utils import validate_call_lex
 
-T = TypeVar("T", Decimal, float, str)
+_T = TypeVar("_T", Decimal, float, str)
+
+if not TYPE_CHECKING:
+    from warnings import warn
 
 
 @validate_call_lex
-def equals(value: T, rhs: T) -> bool:
+def equals(value: _T, rhs: _T) -> bool:
     """Compare two values for equality."""
     return value == rhs
 
 
 @validate_call_lex
-def not_equal(value: T, rhs: T) -> bool:
+def not_equal(value: _T, rhs: _T) -> bool:
     """Compare two values for inequality."""
     return value != rhs
 
 
 @validate_call_lex
-def greater_than(value: T, rhs: T):
+def greater_than(value: _T, rhs: _T):
     """Compare two values for greater than.
 
     Example:
@@ -70,7 +72,7 @@ def greater_than(value: T, rhs: T):
 
 
 @validate_call_lex
-def greater_than_or_equal(value: T, rhs: T) -> bool:
+def greater_than_or_equal(value: _T, rhs: _T) -> bool:
     """Compare two values for greater than or equal to.
 
     Example:
@@ -91,7 +93,7 @@ def greater_than_or_equal(value: T, rhs: T) -> bool:
 
 
 @validate_call_lex
-def less_than(value: T, rhs: T):
+def less_than(value: _T, rhs: _T):
     """Compare two values for less than.
 
     Example:
@@ -110,7 +112,7 @@ def less_than(value: T, rhs: T):
 
 
 @validate_call_lex
-def less_than_or_equal_to(value: T, rhs: T):
+def less_than_or_equal_to(value: _T, rhs: _T):
     """Compare two values for less than or equal to.
 
     Example:
@@ -131,7 +133,7 @@ def less_than_or_equal_to(value: T, rhs: T):
 
 
 # @validate_call
-def in_(value: T, rhs: "Iterable[T]") -> bool:
+def in_(value: _T, rhs: "Iterable[_T]") -> bool:
     """Check if value is in rhs.
 
     Example:
@@ -342,30 +344,39 @@ class Operators(Enum):
     EQUAL = member(equals)
     IEQUAL = member(iequal)
 
-    @property
-    def value(self):
-        """Get the value of the operator.
+    if TYPE_CHECKING:
 
-        Remove when EQUAL and IEQUAL are removed.
-        """
-        match self:
-            case Operators.EQUAL:
-                warn(
-                    f"{self} is deprecated, use {Operators.EXACT} instead",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-            case Operators.IEQUAL:
-                warn(
-                    f"{self} is deprecated, use {Operators.IEXACT} instead",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-            case _:
-                pass
-        return super().value
+        @property
+        @override
+        def value(self) -> Callable[[_T, _T], bool]:
+            return self._value_  # pyright: ignore[reportReturnType]
+    else:
 
-    def evaluate(self, value: T, rhs: T) -> bool:
+        @property
+        def value(self):
+            """Get the value of the operator.
+
+            Remove when EQUAL and IEQUAL are removed.
+            """
+            match self:
+                case Operators.EQUAL:
+                    warn(
+                        f"{self} is deprecated, use {Operators.EXACT} instead",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                case Operators.IEQUAL:
+                    warn(
+                        f"{self} is deprecated, use {Operators.IEXACT} instead",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                case _:
+                    pass
+            return super().value
+
+    # TODO: Typing is probably not totally correct here
+    def evaluate(self, value: _T, rhs: _T) -> bool:
         """Evaluate the operator.
 
         Args:

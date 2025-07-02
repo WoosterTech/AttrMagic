@@ -12,19 +12,26 @@ Exceptions:
 """
 
 from collections import deque
-from typing import Any, SupportsIndex
+from collections.abc import Generator
+from typing import Any, SupportsIndex, TypeVar, cast
 
 from pydantic import BaseModel, model_validator
 
 from attrmagic.operators import Operators
 
-from .sentinels import MISSING
+from .sentinels import MISSING, Missing
 from .utils import override, path_as_parts
+
+_T = TypeVar("_T")
 
 
 def getattr_path(
-    obj, path: "str | AttrPath", *, separator: str = "__", default: Any = MISSING
-):
+    obj: object,
+    path: "str | AttrPath",
+    *,
+    separator: str = "__",
+    default: _T | Missing = MISSING,
+) -> object | _T:
     """Get an attribute path, as defined by a string separated by '__'.
 
     Example:
@@ -54,7 +61,7 @@ def getattr_path(
     for name in attr_path:
         if default is MISSING:
             try:
-                current = getattr(current, name)
+                current = getattr(current, name)  # pyright: ignore[reportAny]
             except AttributeError as e:
                 msg = f"'{type(obj).__name__}' object has no attribute path '{path}', since {e}"
                 raise AttributeError(msg) from e
@@ -68,7 +75,9 @@ def getattr_path(
     return current
 
 
-def setattr_path(obj, path: str, value: Any, *, separator: str = "__"):
+def setattr_path(
+    obj: object, path: str, value: object, *, separator: str = "__"
+) -> None:
     """Set an attribute path, as defined by a string separated by '__'.
 
     Example:
@@ -88,7 +97,7 @@ def setattr_path(obj, path: str, value: Any, *, separator: str = "__"):
     current = obj
     parts = path_as_parts(path, separator=separator)
     for name in list(parts)[:-1]:
-        current = getattr(current, name)
+        current = getattr(current, name)  # pyright: ignore[reportAny]
     setattr(current, parts[-1], value)
 
 
@@ -114,25 +123,29 @@ class AttrPath(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
-    def value_as_string(cls, data: Any) -> Any:
+    def value_as_string(cls, data: Any) -> Any:  # pyright: ignore[reportAny, reportExplicitAny]
         """Converts a sequence of values into a path string."""
         if isinstance(data, dict):
             if isinstance(data["value"], str):
-                return data
+                return data  # pyright: ignore[reportUnknownVariableType]
 
-            separator = (
-                data["separator"]
-                if "separator" in data
-                else cls.get_field_default("separator")
+            separator = cast(
+                "str",
+                (
+                    data["separator"]
+                    if "separator" in data
+                    else cls.get_field_default("separator")
+                ),
             )
-            data["value"] = separator.join(data["value"])
-        return data
+            data["value"] = separator.join(data["value"])  # pyright: ignore[reportUnknownArgumentType]
+        return data  # pyright: ignore[reportUnknownVariableType]
 
     @classmethod
-    def get_field_default(cls, field_name: str):
+    def get_field_default(cls, field_name: str) -> Any:  # pyright: ignore[reportAny, reportExplicitAny]
         """Returns the default value for the specified field."""
         fields = cls.model_fields
-        return next(fields[name] for name in fields if name == field_name).default
+        field = next(fields[name] for name in fields if name == field_name)
+        return field.default  # pyright: ignore[reportAny]
 
     @classmethod
     def str_to_path(
@@ -151,9 +164,10 @@ class AttrPath(BaseModel):
             return cls(value=value, separator=separator)
         return value
 
-    def __iter__(self):
+    @override
+    def __iter__(self) -> Generator[str, Any, None]:  # pyright: ignore[reportExplicitAny, reportIncompatibleMethodOverride]
         """Returns an iterator over the parts of the path."""
-        return iter(self.parts)
+        yield from iter(self.parts)
 
     def __getitem__(self, index: SupportsIndex):
         """Returns the part at the specified index."""

@@ -7,26 +7,28 @@ Classes:
 
 from collections.abc import Hashable, Iterable, Iterator
 from functools import cached_property
-from typing import Any, Generic, Literal, Self, SupportsIndex, TypeVar, overload
+from typing import Generic, Literal, Self, SupportsIndex, TypeVar, overload
 
 from pydantic import BaseModel, RootModel
 
-from .core import AttrPath, QueryPath, getattr_path
-from .operators import Operators
-from .sentinels import MISSING, Missing
-from .utils import override
+from attrmagic.core import AttrPath, QueryPath, getattr_path
+from attrmagic.operators import Operators
+from attrmagic.sentinels import MISSING, Missing
+from attrmagic.utils import override
+
+_T = TypeVar("_T")
 
 
 class ClassBase(BaseModel):
     """Base pydantic class that adds the ability to get attributes by path."""
 
-    def getattr_path(  # pyright: ignore[reportAny]
+    def getattr_path(
         self,
         attr_path: str | AttrPath,
         *,
         separator: str = "__",
-        default: object = MISSING,
-    ) -> Any:  # pyright: ignore[reportExplicitAny]
+        default: _T | Missing = MISSING,
+    ) -> object | _T:
         """Get an attribute path, as defined by a string separated by '__'.
 
         Example:
@@ -61,18 +63,11 @@ class SimpleBaseGenericList(list[SimpleBase], Generic[SimpleBase]): ...  # noqa:
 class SimpleBaseGenericDict(dict[str, SimpleBase], Generic[SimpleBase]): ...  # noqa: D101
 
 
-SimpleBaseGeneric = TypeVar(
-    "SimpleBaseGeneric",
-    SimpleBaseGenericList,
-    SimpleBaseGenericDict,
-)
-
-
 class Filter(BaseModel, Generic[SimpleBase]):
     """A filter that can be applied to a list of objects."""
 
     path: QueryPath
-    value: Any
+    value: object
 
     @cached_property
     def attr_path(self) -> AttrPath:
@@ -85,7 +80,7 @@ class Filter(BaseModel, Generic[SimpleBase]):
         return self.path.operator
 
     @classmethod
-    def from_kwarg(cls, **kwargs) -> list[Self]:
+    def from_kwarg(cls, **kwargs: object) -> list[Self]:
         """Create a filter from a kwarg."""
 
         def qp(path: str) -> QueryPath:
@@ -96,43 +91,52 @@ class Filter(BaseModel, Generic[SimpleBase]):
     def evaluate(self, item: SimpleBase) -> bool:
         """Evaluate the filter against an item."""
         value = getattr_path(item, self.attr_path)
-        return self.operator.evaluate(value, self.value)
+        return self.operator.evaluate(value, self.value)  # pyright: ignore[reportArgumentType]
 
 
 SearchRoot = TypeVar("SearchRoot", bound=ClassBase)
-_T = TypeVar("_T")
-
-_DefaultT = TypeVar("_DefaultT")
 
 
 class SimpleRoot(RootModel[list[SimpleBase]], Generic[SimpleBase]):  # noqa: D101
-    def __iter__(self):  # noqa: D105
+    @override
+    def __iter__(self):  # noqa: D105  # pyright: ignore[reportIncompatibleMethodOverride]
         return iter(self.root)
 
     @overload
     def __getitem__(self, item: SupportsIndex, /) -> SimpleBase: ...
     @overload
     def __getitem__(self, item: slice, /) -> list[SimpleBase]: ...
-    def __getitem__(self, item):  # noqa: D105
+    def __getitem__(self, item: SupportsIndex | slice) -> SimpleBase | list[SimpleBase]:  # noqa: D105
         return self.root[item]
 
     @overload
-    def __setitem__(self, key: SupportsIndex, value: _T) -> None: ...
+    def __setitem__(self, key: SupportsIndex, value: SimpleBase) -> None: ...
     @overload
-    def __setitem__(self, key: slice, value: Iterable[_T]) -> None: ...
-    def __setitem__(self, key, value):  # noqa: D105
-        self.root[key] = value
+    def __setitem__(self, key: slice, value: Iterable[SimpleBase]) -> None: ...
+    def __setitem__(  # noqa: D105
+        self, key: SupportsIndex | slice, value: SimpleBase | Iterable[SimpleBase]
+    ) -> None:
+        if isinstance(key, SupportsIndex) and not isinstance(value, Iterable):
+            self.root[key] = value
+        elif isinstance(key, slice) and isinstance(value, Iterable):
+            self.root[key] = value
+        else:
+            raise TypeError(
+                f"Invalid types for __setitem__: key={type(key)}, value={type(value)}"  # pyright: ignore[reportUnknownArgumentType]
+            )
 
-    def _get_filters(self, **kwargs) -> list[Filter[SimpleBase]]:
-        return Filter.from_kwarg(**kwargs)
+    def _get_filters(self, **kwargs: object) -> list[Filter[SimpleBase]]:
+        return Filter[SimpleBase].from_kwarg(**kwargs)
 
     def _filter_list(self, filters: Iterable[Filter[SimpleBase]]) -> Self:
         assert isinstance(self.root, list), "_filter_list requires that root is a list"
         for filter in filters:
-            self.root = [item for item in self.root if filter.evaluate(item)]
+            self.root: list[SimpleBase] = [
+                item for item in self.root if filter.evaluate(item)
+            ]
         return self
 
-    def filter(self, **kwargs) -> Self:
+    def filter(self, **kwargs: object) -> Self:
         """Find items that match the kwargs.
 
         Example:
@@ -154,20 +158,16 @@ class SimpleRoot(RootModel[list[SimpleBase]], Generic[SimpleBase]):  # noqa: D10
 
     @overload
     def get(
-        self, *, default: SimpleBase | Missing = MISSING, **kwargs: Any
+        self, *, default: SimpleBase | Missing = MISSING, **kwargs: object
     ) -> SimpleBase: ...
     @overload
-    def get(self, *, default: Literal[None], **kwargs: Any) -> SimpleBase | None: ...
-    @overload
-    def get(
-        self, *, default: SimpleBase | Missing | None, **kwargs: Any
-    ) -> SimpleBase | None: ...
+    def get(self, *, default: Literal[None], **kwargs: object) -> SimpleBase | None: ...
     def get(
         self,
         *,
-        default=MISSING,
-        **kwargs,
-    ):
+        default: SimpleBase | Missing | None = MISSING,
+        **kwargs: object,
+    ) -> SimpleBase | None:
         """Return the item that matches the kwargs or the default value.
 
         Raises:
@@ -191,14 +191,12 @@ class SimpleRoot(RootModel[list[SimpleBase]], Generic[SimpleBase]):  # noqa: D10
         """Append an item to the end of class."""
         self.root.append(item)
 
-    def __add__(self, other: "SimpleRoot | Iterable[SimpleBase]") -> Self:  # noqa: D105
+    def __add__(self, other: "SimpleRoot[SimpleBase] | Iterable[SimpleBase]") -> Self:  # noqa: D105
         match other:
             case SimpleRoot():
                 self.root += other.root
             case Iterable():
                 self.root += list(other)
-            case _:
-                raise NotImplementedError
 
         return self
 
@@ -313,17 +311,19 @@ class SearchBase(SimpleRoot[SearchRoot], Generic[SearchRoot]):
     ```
     """
 
-    def _compare(self, item: SearchRoot, lhs: str, rhs: Any, operator: Operators):
+    def _compare(
+        self, item: SearchRoot, lhs: str | AttrPath, rhs: object, operator: Operators
+    ) -> bool:
         value = item.getattr_path(attr_path=lhs)
-        return operator.evaluate(value, rhs)
+        return operator.evaluate(value, rhs)  # pyright: ignore[reportArgumentType]
 
-    def _split_kwarg(self, **kwargs) -> tuple[str, Any]:
+    def _split_kwarg(self, **kwargs: _T) -> tuple[str, _T]:
         """Return tuple of lhs and rhs."""
         assert len(kwargs) <= 1, "only one kwarg is allowed beyond default"
 
         return next(iter(kwargs.items()))
 
-    def _get_compare_tuple(self, **kwargs):
+    def _get_compare_tuple(self, **kwargs: _T) -> tuple[AttrPath, _T, Operators]:
         """Return tuple of lhs, rhs, and operator."""
         lhs, rhs = self._split_kwarg(**kwargs)
         query_path = QueryPath.from_string(lhs)
@@ -331,11 +331,11 @@ class SearchBase(SimpleRoot[SearchRoot], Generic[SearchRoot]):
 
         return lhs, rhs, operator
 
-    def exclude(self, **kwargs) -> Self:
+    def exclude(self, **kwargs: object) -> Self:
         """Remove items that match the kwargs."""
         lhs, rhs, operator = self._get_compare_tuple(**kwargs)
 
-        self.root = [
+        self.root: list[SearchRoot] = [
             item for item in self.root if not self._compare(item, lhs, rhs, operator)
         ]
 
