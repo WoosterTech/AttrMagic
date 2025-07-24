@@ -1,47 +1,56 @@
 [project]
 name = "AttrMagic"
-dynamic = ["version"]
 description = "Query-like access to nested attributes"
 readme = "README.md"
+requires-python = ">=3.11,<4.0"
 license = "MIT"
 license-files = ["LICENSE.md"]
-authors = [
-    { name = "Karl Wooster", email = "karl@woostertech.com" }
-]
-keywords = ["pydantic", "path", "attributes"]
+authors = [{ name = "Karl Wooster", email = "karl@woostertech.com" }]
+keywords = ["attributes", "path", "pydantic"]
 classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
 ]
-
-requires-python = ">=3.11,<4.0"
 dependencies = [
-    "pydantic>=2.7", # older versions fail tests
-    # - required types are available in 3.12;
-    # - dependent packages will force a newer version than 4.5, this is here to avoid transience
-    #   - override was changed in version 4.5.0 per
-    #     https://typing-extensions.readthedocs.io/en/latest/#typing_extensions.override
-    "typing-extensions>=4.5 ; python_full_version < '3.12'",
+  "pydantic>=2.7", # older versions fail tests
+  # - required types are available in 3.12;
+  # - dependent packages will force a newer version than 4.5, this is here to avoid transience
+  #   - override was changed in version 4.5.0 per
+  #     https://typing-extensions.readthedocs.io/en/latest/#typing_extensions.override
+  "pydantic-core>=2.27.2",
+  "typing-extensions>=4.5 ; python_full_version < '3.12'",
 ]
+dynamic = ["version"]
 
 [project.urls]
-Repository = "https://github.com/WoosterTech/AttrMagic.git"
-Issues = "https://github.com/WoosterTech/AttrMagic/issues"
 Changelog = "https://github.com/WoosterTech/AttrMagic/blob/main/CHANGELOG.md"
+Issues = "https://github.com/WoosterTech/AttrMagic/issues"
+Repository = "https://github.com/WoosterTech/AttrMagic.git"
+
+[dependency-groups]
+dev = [
+  "commitizen>=4.1.1",
+  "deptry>=0.23.0",
+  "icecream>=2.1.4",
+  "mypy>=1.14.1",
+  "pre-commit>=4.1.0",
+  "ruff>=0.9.3",
+]
+docs = ["mkdocs>=1.6.1"]
+test = [
+  "polyfactory>=2.19.0",
+  "pytest-cov>=6.0.0",
+  "pytest-sugar>=1.0.0",
+  "pytest>=8.3.4",
+]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-
-[tool.hatch.version]
-path = "src/attrmagic/__about__.py"
-
-[tool.uv]
-managed = true
 
 [tool.commitizen]
 version = "0.2.0b1"
@@ -53,32 +62,19 @@ update_changelog_on_bump = true
 major_version_zero = true
 version_files = ["src/attrmagic/__about__.py:__version__"]
 
-[tool.pytest.ini_options]
-minversion = "6.0"
-python_files = ["tests.py", "test_*.py"]
-addopts = "--cov=attrmagic"
+[tool.deptry]
+known_first_party = ["attrmagic"]
+
+[tool.hatch.version]
+path = "src/attrmagic/__about__.py"
 
 [tool.mypy-mycode.tests]
 ignore_errors = true
 
-[dependency-groups]
-dev = [
-    "commitizen>=4.1.1",
-    "deptry>=0.23.0",
-    "icecream>=2.1.4",
-    "mypy>=1.14.1",
-    "pre-commit>=4.1.0",
-    "ruff>=0.9.3",
-]
-test = [
-    "polyfactory>=2.19.0",
-    "pytest>=8.3.4",
-    "pytest-cov>=6.0.0",
-    "pytest-sugar>=1.0.0",
-]
-docs = [
-    "mkdocs>=1.6.1",
-]
+[tool.pytest.ini_options]
+addopts = "--cov=attrmagic"
+minversion = "6.0"
+python_files = ["tests.py", "test_*.py"]
 
-[tool.deptry]
-known_first_party = ["attrmagic"]
+[tool.uv]
+managed = true

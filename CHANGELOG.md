@@ -10,6 +10,17 @@
 
 - **SimpleGenericRoot**: a rootmodel for dictionaries that provides most methods that the root dictionary would provide
 
+## 0.1.1b6 (2025-07-02)
+
+### Feat
+
+- **SimpleDict**: add as a public api/aliased at root
+- **SimpleDict**: new Generic RootModel
+
+### Fix
+
+- **typing**: better overall typing
+
 ## 0.1.1b5 (2025-02-19)
 
 ### Refactor
