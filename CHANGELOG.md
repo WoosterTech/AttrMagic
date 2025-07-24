@@ -1,3 +1,15 @@
+## 0.2.0b2 (2025-07-24)
+
+### Feat
+
+- **models.py**: add `empty` methods to SimpleListRoot and SimpleDict
+- **base_type**: add `base_type` property to SimpleRoot for accessing the Generic that was used
+- **SimpleDict**: add as a public api/aliased at root
+
+### Fix
+
+- **typing**: better overall typing
+
 ## 0.2.0b1 (2025-03-26)
 
 ### Feat
