@@ -6,6 +6,7 @@ Classes:
 """
 
 from collections.abc import Hashable, Iterable, Iterator, Mapping
+from decimal import Decimal
 from functools import cached_property
 from typing import (
     TYPE_CHECKING,
@@ -103,7 +104,7 @@ class Filter(BaseModel, Generic[SimpleBase]):
 
     def evaluate(self, item: SimpleBase) -> bool:
         """Evaluate the filter against an item."""
-        value = getattr_path(item, self.attr_path)
+        value = cast("Decimal | float | str", getattr_path(item, self.attr_path))
         return self.operator.evaluate(value, self.value)  # pyright: ignore[reportArgumentType]
 
 
@@ -118,6 +119,11 @@ def _get_or_raise(obj: Mapping[str, _T], attr: str) -> _T:
 
 
 class SimpleListRoot(RootModel[list[SimpleBase]], Generic[SimpleBase]):  # noqa: D101
+    @classmethod
+    def empty(cls) -> Self:
+        """Create an empty instance of the class."""
+        return cls(root=[])
+
     @override
     def __iter__(self):  # noqa: D105  # pyright: ignore[reportIncompatibleMethodOverride]
         return iter(self.root)
@@ -248,6 +254,11 @@ class SimpleDict(RootModel[dict[_KT, _VT]], Generic[_KT, _VT]):
 
     Adds (most) methods from the built-in dict class.
     """
+
+    @classmethod
+    def empty(cls) -> Self:
+        """Create an empty instance of the class."""
+        return cls(root={})
 
     def __len__(self) -> int:
         """Return the number of items in the dictionary."""
