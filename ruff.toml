@@ -17,4 +17,3 @@ convention = "google"
 [format]
 quote-style = "double"
 docstring-code-format = true
-docstring-code-line-length = "dynamic"
