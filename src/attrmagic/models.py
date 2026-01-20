@@ -5,7 +5,7 @@ Classes:
     SearchBase: A generic root model for searching and filtering lists of ClassBase objects.
 """
 
-from collections.abc import Hashable, Iterable, Iterator, Mapping
+from collections.abc import Hashable, Iterable, Iterator, Mapping, Sequence
 from decimal import Decimal
 from functools import cached_property
 from typing import (
@@ -138,13 +138,13 @@ class SimpleListRoot(RootModel[list[SimpleBase]], Generic[SimpleBase]):  # noqa:
     @overload
     def __setitem__(self, key: SupportsIndex, value: SimpleBase) -> None: ...
     @overload
-    def __setitem__(self, key: slice, value: Iterable[SimpleBase]) -> None: ...
+    def __setitem__(self, key: slice, value: Sequence[SimpleBase]) -> None: ...
     def __setitem__(  # noqa: D105
-        self, key: SupportsIndex | slice, value: SimpleBase | Iterable[SimpleBase]
+        self, key: SupportsIndex | slice, value: SimpleBase | Sequence[SimpleBase]
     ) -> None:
-        if isinstance(key, SupportsIndex) and not isinstance(value, Iterable):
+        if isinstance(key, SupportsIndex) and not isinstance(value, Sequence):
             self.root[key] = value
-        elif isinstance(key, slice) and isinstance(value, Iterable):
+        elif isinstance(key, slice) and isinstance(value, Sequence):
             self.root[key] = value
         else:
             raise TypeError(
@@ -226,13 +226,15 @@ class SimpleListRoot(RootModel[list[SimpleBase]], Generic[SimpleBase]):  # noqa:
         self.root.append(item)
 
     def __add__(  # noqa: D105
-        self, other: "SimpleListRoot[SimpleBase] | Iterable[SimpleBase]"
+        self, other: "SimpleListRoot[SimpleBase] | Iterable[SimpleBase] | object"
     ) -> Self:
         match other:
             case SimpleListRoot():
-                self.root += other.root
+                self.root += other.root  # pyright: ignore[reportUnknownMemberType]
             case Iterable():
-                self.root += list(other)
+                self.root += list(other)  # pyright: ignore[reportUnknownArgumentType]
+            case _:
+                return NotImplemented
 
         return self
 
@@ -332,6 +334,10 @@ class SimpleDict(RootModel[dict[_KT, _VT]], Generic[_KT, _VT]):
     def __reversed__(self) -> Iterator[_KT]:
         """Return a reverse iterator over the keys of the dictionary."""
         return reversed(self.root)
+
+    def __contains__(self, key: _KT) -> bool:
+        """Return key in self."""
+        return key in self.root
 
 
 class SimpleDictStr(RootModel[dict[str, _VT]], Generic[_VT]):  # noqa: D101

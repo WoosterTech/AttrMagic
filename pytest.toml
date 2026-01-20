@@ -1,0 +1,4 @@
+[pytest]
+addopts = "--cov=attrmagic"
+minversion = "9.0"
+python_files = ["tests.py", "test_*.py"]

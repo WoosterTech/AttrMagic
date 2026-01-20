@@ -16,7 +16,7 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-  "pydantic>=2.7", # older versions fail tests
+  "pydantic>=2.7",  # older versions fail tests
   # - required types are available in 3.12;
   # - dependent packages will force a newer version than 4.5, this is here to avoid transience
   #   - override was changed in version 4.5.0 per
@@ -33,19 +33,19 @@ Repository = "https://github.com/WoosterTech/AttrMagic.git"
 
 [dependency-groups]
 dev = [
+  "basedpyright>=1.37.1",
   "commitizen>=4.1.1",
   "deptry>=0.23.0",
   "icecream>=2.1.4",
-  "mypy>=1.14.1",
   "pre-commit>=4.1.0",
   "ruff>=0.9.3",
 ]
 docs = ["mkdocs>=1.6.1"]
 test = [
   "polyfactory>=2.19.0",
+  "pytest>=8.3.4",
   "pytest-cov>=6.0.0",
   "pytest-sugar>=1.0.0",
-  "pytest>=8.3.4",
 ]
 
 [build-system]
@@ -70,11 +70,6 @@ path = "src/attrmagic/__about__.py"
 
 [tool.mypy-mycode.tests]
 ignore_errors = true
-
-[tool.pytest.ini_options]
-addopts = "--cov=attrmagic"
-minversion = "6.0"
-python_files = ["tests.py", "test_*.py"]
 
 [tool.uv]
 managed = true

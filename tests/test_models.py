@@ -1,4 +1,5 @@
 import enum
+from typing import TypeAlias
 
 import pytest
 
@@ -22,7 +23,10 @@ class MyTestEnum(enum.Enum):
 class SimpleDictTest(SimpleDict[str, MyTestEnum]): ...
 
 
-BarSearch = SearchBase[Bar]
+# class BarSearch(SearchBase[Bar]):
+#     pass
+
+BarSearch: TypeAlias = SearchBase[Bar]
 
 
 @pytest.fixture
@@ -35,7 +39,7 @@ def test_getattr_path():
     assert foo.getattr_path("a__c") == 42
     assert foo.getattr_path("a__d", default="missing") == "missing"
     with pytest.raises(AttributeError):
-        foo.getattr_path("a__d")
+        _ = foo.getattr_path("a__d")
 
 
 def test_searchbase_filter(bar_search: BarSearch):
@@ -82,8 +86,8 @@ def test_searchbase_add_list(bar_search: BarSearch):
 
 
 def test_searchbase_add_number(bar_search: BarSearch):
-    with pytest.raises(NotImplementedError):
-        bar_search + 1  # type: ignore[operator]
+    with pytest.raises(TypeError):
+        bar_search + 1  # pyright: ignore[reportUnusedExpression]
 
 
 def test_searchbase_iter(bar_search: BarSearch):
@@ -105,7 +109,7 @@ def test_searchbase_get(bar_search: BarSearch):
     assert bar_search.get(c__exact=4, default=None) is None
 
 
-def test_repr(bar_search):
+def test_repr(bar_search: BarSearch):
     assert repr(bar_search) == "SearchBase[Bar]([Bar(c=1), Bar(c=2), Bar(c=3)])"
 
 
