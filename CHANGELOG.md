@@ -1,3 +1,9 @@
+## 0.2.1 (2026-01-20)
+
+### Feat
+
+- **SimpleDict**: add `__contains__` method to get "X in Y" capability
+
 ## 0.2.0 (2025-11-18)
 
 ## 0.2.0b3 (2025-07-24)
