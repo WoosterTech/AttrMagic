@@ -221,6 +221,10 @@ class SimpleListRoot(RootModel[list[SimpleBase]], Generic[SimpleBase]):  # noqa:
 
         return items_list[0]
 
+    def pop(self, index: SupportsIndex = -1, /) -> SimpleBase:
+        """Remove and return item at index (default last)."""
+        return self.root.pop(index)
+
     def append(self, item: SimpleBase):
         """Append an item to the end of class."""
         self.root.append(item)
