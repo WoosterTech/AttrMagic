@@ -13,25 +13,23 @@ Exceptions:
 
 from collections import deque
 from collections.abc import Generator
-from typing import Any, SupportsIndex, TypeVar, cast
+from typing import Any, SupportsIndex, cast, override
 
 from pydantic import BaseModel, model_validator
 
 from attrmagic.operators import Operators
 
 from .sentinels import MISSING, Missing
-from .utils import override, path_as_parts
-
-_T = TypeVar("_T")
+from .utils import path_as_parts
 
 
-def getattr_path(
+def getattr_path[T](
     obj: object,
     path: "str | AttrPath",
     *,
     separator: str = "__",
-    default: _T | Missing = MISSING,
-) -> object | _T:
+    default: T | Missing = MISSING,
+) -> object | T:
     """Get an attribute path, as defined by a string separated by '__'.
 
     Example:
@@ -201,7 +199,7 @@ class AttrPath(BaseModel):
         return self.separator.join(self.parts)
 
     @override
-    def __str__(self):  # noqa: D105
+    def __str__(self) -> str:
         return self.render()
 
     @property

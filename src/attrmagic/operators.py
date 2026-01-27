@@ -29,15 +29,11 @@ from decimal import Decimal
 from enum import Enum, member
 from typing import TYPE_CHECKING, TypeVar, override
 
-# from .utils import validate_call_lex
 from pydantic import validate_call
 
 from attrmagic.utils import validate_call_lex
 
 _T = TypeVar("_T", Decimal, float, str)
-
-if not TYPE_CHECKING:
-    from warnings import warn
 
 
 @validate_call_lex
@@ -133,7 +129,7 @@ def less_than_or_equal_to(value: _T, rhs: _T):
 
 
 # @validate_call
-def in_(value: _T, rhs: "Iterable[_T]") -> bool:
+def in_[T: (Decimal, float, str)](value: T, rhs: "Iterable[T]") -> bool:
     """Check if value is in rhs.
 
     Example:
@@ -350,30 +346,6 @@ class Operators(Enum):
         @override
         def value(self) -> Callable[[_T, _T], bool]:
             return self._value_  # pyright: ignore[reportReturnType]
-    else:
-
-        @property
-        def value(self):
-            """Get the value of the operator.
-
-            Remove when EQUAL and IEQUAL are removed.
-            """
-            match self:
-                case Operators.EQUAL:
-                    warn(
-                        f"{self} is deprecated, use {Operators.EXACT} instead",
-                        DeprecationWarning,
-                        stacklevel=2,
-                    )
-                case Operators.IEQUAL:
-                    warn(
-                        f"{self} is deprecated, use {Operators.IEXACT} instead",
-                        DeprecationWarning,
-                        stacklevel=2,
-                    )
-                case _:
-                    pass
-            return super().value
 
     # TODO: Typing is probably not totally correct here
     def evaluate(self, value: _T, rhs: _T) -> bool:

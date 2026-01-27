@@ -5,18 +5,17 @@ Classes:
     SearchBase: A generic root model for searching and filtering lists of ClassBase objects.
 """
 
-from collections.abc import Hashable, Iterable, Iterator, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from decimal import Decimal
 from functools import cached_property
 from typing import (
     TYPE_CHECKING,
-    Generic,
     Literal,
     Self,
     SupportsIndex,
-    TypeVar,
     cast,
     overload,
+    override,
 )
 
 from pydantic import BaseModel, RootModel
@@ -25,24 +24,21 @@ from pydantic_core.core_schema import ListSchema, ModelSchema
 from attrmagic.core import AttrPath, QueryPath, getattr_path
 from attrmagic.operators import Operators
 from attrmagic.sentinels import MISSING, Missing
-from attrmagic.utils import override
 
 if TYPE_CHECKING:
     from _collections_abc import dict_items, dict_keys, dict_values
-
-_T = TypeVar("_T")
 
 
 class ClassBase(BaseModel):
     """Base pydantic class that adds the ability to get attributes by path."""
 
-    def getattr_path(
+    def getattr_path[T](
         self,
         attr_path: str | AttrPath,
         *,
         separator: str = "__",
-        default: _T | Missing = MISSING,
-    ) -> object | _T:
+        default: T | Missing = MISSING,
+    ) -> object | T:
         """Get an attribute path, as defined by a string separated by '__'.
 
         Example:
@@ -68,16 +64,13 @@ class ClassBase(BaseModel):
         )
 
 
-SimpleBase = TypeVar("SimpleBase")
+class SimpleBaseGenericList[SimpleBase](list[SimpleBase]): ...  # noqa: D101
 
 
-class SimpleBaseGenericList(list[SimpleBase], Generic[SimpleBase]): ...  # noqa: D101
+class SimpleBaseGenericDict[SimpleBase](dict[str, SimpleBase]): ...  # noqa: D101
 
 
-class SimpleBaseGenericDict(dict[str, SimpleBase], Generic[SimpleBase]): ...  # noqa: D101
-
-
-class Filter(BaseModel, Generic[SimpleBase]):
+class Filter[SimpleBase](BaseModel):
     """A filter that can be applied to a list of objects."""
 
     path: QueryPath
@@ -108,24 +101,21 @@ class Filter(BaseModel, Generic[SimpleBase]):
         return self.operator.evaluate(value, self.value)  # pyright: ignore[reportArgumentType]
 
 
-SearchRoot = TypeVar("SearchRoot", bound=ClassBase)
-
-
-def _get_or_raise(obj: Mapping[str, _T], attr: str) -> _T:
+def _get_or_raise[T](obj: Mapping[str, T], attr: str) -> T:
     result = obj[attr]
     if result is None:
         raise AttributeError(f"Attribute '{attr}' not found in {obj}")
     return result
 
 
-class SimpleListRoot(RootModel[list[SimpleBase]], Generic[SimpleBase]):  # noqa: D101
+class SimpleListRoot[SimpleBase](RootModel[list[SimpleBase]]):  # noqa: D101
     @classmethod
     def empty(cls) -> Self:
         """Create an empty instance of the class."""
         return cls(root=[])
 
     @override
-    def __iter__(self):  # noqa: D105  # pyright: ignore[reportIncompatibleMethodOverride]
+    def __iter__(self) -> Iterator[SimpleBase]:  # pyright: ignore[reportIncompatibleMethodOverride]
         return iter(self.root)
 
     @overload
@@ -246,16 +236,11 @@ class SimpleListRoot(RootModel[list[SimpleBase]], Generic[SimpleBase]):  # noqa:
         return len(self.root)
 
     @override
-    def __repr__(self):  # noqa: D105
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}({self.root})"
 
 
-_R = TypeVar("_R", bound=Hashable)
-_KT = TypeVar("_KT")
-_VT = TypeVar("_VT")
-
-
-class SimpleDict(RootModel[dict[_KT, _VT]], Generic[_KT, _VT]):
+class SimpleDict[KeyT, ValueT](RootModel[dict[KeyT, ValueT]]):
     """An implementation of Pydantic's BaseModel for dictionaries.
 
     Adds (most) methods from the built-in dict class.
@@ -270,27 +255,27 @@ class SimpleDict(RootModel[dict[_KT, _VT]], Generic[_KT, _VT]):
         """Return the number of items in the dictionary."""
         return len(self.root)
 
-    def keys(self) -> "dict_keys[_KT, _VT]":
+    def keys(self) -> "dict_keys[KeyT, ValueT]":
         """Return a new view of the dictionary's keys."""
         return self.root.keys()
 
-    def values(self) -> "dict_values[_KT, _VT]":
+    def values(self) -> "dict_values[KeyT, ValueT]":
         """Return a new view of the dictionary's values."""
         return self.root.values()
 
-    def items(self) -> "dict_items[_KT, _VT]":
+    def items(self) -> "dict_items[KeyT, ValueT]":
         """Return a new view of the dictionary's items (key, value)."""
         return self.root.items()
 
     @overload  # type: ignore[override]
-    def get(self, key: _KT, /) -> _VT | None: ...
+    def get(self, key: KeyT, /) -> ValueT | None: ...
     @overload
-    def get(self, key: _KT, default: _VT, /) -> _VT: ...
+    def get(self, key: KeyT, default: ValueT, /) -> ValueT: ...
     @overload
-    def get(self, key: _KT, default: _T, /) -> _VT | _T: ...
-    def get(
-        self, key: _KT, default: _T | _VT | Missing = MISSING, /
-    ) -> _VT | _T | None:
+    def get[T](self, key: KeyT, default: T, /) -> ValueT | T: ...
+    def get[T](
+        self, key: KeyT, default: T | ValueT | Missing = MISSING, /
+    ) -> ValueT | T | None:
         """Return the value for key if key is in the dictionary, else default.
 
         Args:
@@ -302,12 +287,14 @@ class SimpleDict(RootModel[dict[_KT, _VT]], Generic[_KT, _VT]):
         return self.root.get(key, normal_default)
 
     @overload
-    def pop(self, key: _KT, /) -> _VT: ...
+    def pop(self, key: KeyT, /) -> ValueT: ...
     @overload
-    def pop(self, key: _KT, default: _VT, /) -> _VT: ...
+    def pop(self, key: KeyT, default: ValueT, /) -> ValueT: ...
     @overload
-    def pop(self, key: _KT, default: _T, /) -> _VT | _T: ...
-    def pop(self, key: _KT, default: _T | _VT | Missing = MISSING, /) -> _VT | _T:
+    def pop[T](self, key: KeyT, default: T, /) -> ValueT | T: ...
+    def pop[T](
+        self, key: KeyT, default: T | ValueT | Missing = MISSING, /
+    ) -> ValueT | T:
         """Remove specified key and return the corresponding value.
 
         Args:
@@ -318,15 +305,15 @@ class SimpleDict(RootModel[dict[_KT, _VT]], Generic[_KT, _VT]):
             return self.root.pop(key)
         return self.root.pop(key, default)
 
-    def __getitem__(self, key: _KT) -> _VT:
+    def __getitem__(self, key: KeyT) -> ValueT:
         """Return the value for key."""
         return self.root[key]
 
-    def __setitem__(self, key: _KT, value: _VT) -> None:
+    def __setitem__(self, key: KeyT, value: ValueT) -> None:
         """Set the value for key."""
         self.root[key] = value
 
-    def __delitem__(self, key: _KT) -> None:
+    def __delitem__(self, key: KeyT) -> None:
         """Delete self[key]."""
         del self.root[key]
 
@@ -335,20 +322,20 @@ class SimpleDict(RootModel[dict[_KT, _VT]], Generic[_KT, _VT]):
         """Return self==value."""
         return self.root == value
 
-    def __reversed__(self) -> Iterator[_KT]:
+    def __reversed__(self) -> Iterator[KeyT]:
         """Return a reverse iterator over the keys of the dictionary."""
         return reversed(self.root)
 
-    def __contains__(self, key: _KT) -> bool:
+    def __contains__(self, key: KeyT) -> bool:
         """Return key in self."""
         return key in self.root
 
 
-class SimpleDictStr(RootModel[dict[str, _VT]], Generic[_VT]):  # noqa: D101
+class SimpleDictStr[ValueT](RootModel[dict[str, ValueT]]):  # noqa: D101
     pass
 
 
-class SearchBase(SimpleListRoot[SearchRoot], Generic[SearchRoot]):
+class SearchBase[SearchRoot: ClassBase](SimpleListRoot[SearchRoot]):
     """A generic root model for searching and filtering lists of ClassBase objects.
 
     Example:
@@ -368,13 +355,13 @@ class SearchBase(SimpleListRoot[SearchRoot], Generic[SearchRoot]):
         value = item.getattr_path(attr_path=lhs)
         return operator.evaluate(value, rhs)  # pyright: ignore[reportArgumentType]
 
-    def _split_kwarg(self, **kwargs: _T) -> tuple[str, _T]:
+    def _split_kwarg[T](self, **kwargs: T) -> tuple[str, T]:
         """Return tuple of lhs and rhs."""
         assert len(kwargs) <= 1, "only one kwarg is allowed beyond default"
 
         return next(iter(kwargs.items()))
 
-    def _get_compare_tuple(self, **kwargs: _T) -> tuple[AttrPath, _T, Operators]:
+    def _get_compare_tuple[T](self, **kwargs: T) -> tuple[AttrPath, T, Operators]:
         """Return tuple of lhs, rhs, and operator."""
         lhs, rhs = self._split_kwarg(**kwargs)
         query_path = QueryPath.from_string(lhs)

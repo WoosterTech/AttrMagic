@@ -1,5 +1,4 @@
 import enum
-from typing import TypeAlias
 
 import pytest
 
@@ -26,7 +25,7 @@ class SimpleDictTest(SimpleDict[str, MyTestEnum]): ...
 # class BarSearch(SearchBase[Bar]):
 #     pass
 
-BarSearch: TypeAlias = SearchBase[Bar]
+BarSearch = SearchBase[Bar]
 
 
 @pytest.fixture

@@ -1,7 +1,5 @@
 requires = ["tox>=4"]
 envlist = [
-    "py311-lowest",
-    "py311",
     "py312-lowest",
     "py312",
     "py313",
@@ -11,7 +9,6 @@ envlist = [
 [gh.python]
 "3.13" = ["3.13"]
 "3.12" = ["3.12"]
-"3.11" = ["3.11"]
 
 [env_run_base]
 runner = "uv-venv-lock-runner"

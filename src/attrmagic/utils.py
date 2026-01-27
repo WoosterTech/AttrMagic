@@ -9,18 +9,10 @@ Functions:
 """
 
 import functools
-import sys
 from collections import deque
 from collections.abc import Callable
 from decimal import Decimal, InvalidOperation
-from typing import TypeVar
-
-__all__ = ["override"]
-
-if sys.version_info >= (3, 12):  # pragma: no cover
-    from typing import override
-else:  # pragma: no cover
-    from typing_extensions import override
+from typing import ParamSpec, TypeVar
 
 
 def path_as_parts(path: str, *, separator: str = "__") -> deque[str]:
@@ -87,12 +79,15 @@ def decimal_or_string(value: LexType) -> Decimal | str:
 ARGS = TypeVar("ARGS", tuple[Decimal | float | str], dict[str, Decimal | float | str])
 ValueT = TypeVar("ValueT", Decimal, float, str)
 RHS_T = TypeVar("RHS_T", Decimal, float, str)
-T = TypeVar("T")
+# T = TypeVar("T")
+
+_ParamsT = ParamSpec("_ParamsT")
+_ReturnT = TypeVar("_ReturnT")
 
 
-def validate_call_lex(
-    func: Callable[[ValueT, RHS_T], T],
-) -> Callable[[ValueT, RHS_T], T]:
+def validate_call_lex[**ParamsT, ReturnT](
+    func: Callable[ParamsT, ReturnT],
+) -> Callable[ParamsT, ReturnT]:
     """Validate the call of a function with lexical arguments.
 
     Args:
@@ -103,8 +98,8 @@ def validate_call_lex(
     """
 
     @functools.wraps(func)
-    def wrapper(*args):
-        args = (decimal_or_string(arg) for arg in args)
-        return func(*args)
+    def wrapper(*args: ParamsT.args, **_kwargs: ParamsT.kwargs) -> ReturnT:
+        args = (decimal_or_string(arg) for arg in args)  # pyright: ignore[reportAssignmentType, reportArgumentType]
+        return func(*args)  # pyright: ignore[reportCallIssue]
 
     return wrapper
