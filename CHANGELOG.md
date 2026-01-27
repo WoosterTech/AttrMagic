@@ -1,3 +1,9 @@
+## 0.2.2 (2026-01-27)
+
+### Feat
+
+- **SimpleListRoot**: add `pop` method
+
 ## 0.2.1 (2026-01-20)
 
 ### Feat
