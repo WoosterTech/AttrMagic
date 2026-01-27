@@ -1,3 +1,9 @@
+## 0.2.3 (2026-01-27)
+
+### Fix
+
+- **override**: remove 3.11 compatibility
+
 ## 0.2.2 (2026-01-27)
 
 ### Feat
