@@ -340,7 +340,7 @@ class Operators(Enum):
     EQUAL = member(equals)
     IEQUAL = member(iequal)
 
-    if TYPE_CHECKING:
+    if TYPE_CHECKING:  # pragma: no cover
 
         @property
         @override

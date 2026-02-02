@@ -25,8 +25,38 @@ from attrmagic.core import AttrPath, QueryPath, getattr_path
 from attrmagic.operators import Operators
 from attrmagic.sentinels import MISSING, Missing
 
-if TYPE_CHECKING:
+if TYPE_CHECKING:  # pragma: no cover
     from _collections_abc import dict_items, dict_keys, dict_values
+
+
+def Q(**kwargs: object) -> "Filter[object]":
+    """Create a Filter object for queries, similar to Django's Q objects.
+
+    Example:
+    ```
+    >>> from attrmagic.models import Q, SearchBase
+    >>>
+    >>> # Create filters
+    >>> filter1 = Q(age__gt=18)
+    >>> filter2 = Q(name__icontains='john')
+    >>> negated_filter = ~Q(status='inactive')
+    >>>
+    >>> # Use in filter method
+    >>> results = SearchBase([...]).filter(filter1, filter2, negated_filter)
+    ```
+
+    Args:
+        kwargs: The field lookups for the filter.
+
+    Returns:
+        A Filter object that can be negated with ~ operator.
+    """
+    if len(kwargs) != 1:
+        raise ValueError("Q() objects must have exactly one keyword argument")
+
+    path_str, value = next(iter(kwargs.items()))
+    query_path = QueryPath.from_string(path_str)
+    return Filter(path=query_path, value=value)
 
 
 class ClassBase(BaseModel):
@@ -75,6 +105,7 @@ class Filter[SimpleBase](BaseModel):
 
     path: QueryPath
     value: object
+    negated: bool = False
 
     @cached_property
     def attr_path(self) -> AttrPath:
@@ -85,6 +116,17 @@ class Filter[SimpleBase](BaseModel):
     def operator(self) -> Operators:
         """Get the operator."""
         return self.path.operator
+
+    def __invert__(self) -> Self:
+        """Negate the filter using the ~ operator.
+
+        Example:
+        ```
+        >>> filter = Filter(path=QueryPath.from_string('field__gt'), value=5)
+        >>> negated_filter = ~filter
+        ```
+        """
+        return self.model_copy(update={"negated": not self.negated})
 
     @classmethod
     def from_kwarg(cls, **kwargs: object) -> list[Self]:
@@ -98,7 +140,8 @@ class Filter[SimpleBase](BaseModel):
     def evaluate(self, item: SimpleBase) -> bool:
         """Evaluate the filter against an item."""
         value = cast("Decimal | float | str", getattr_path(item, self.attr_path))
-        return self.operator.evaluate(value, self.value)  # pyright: ignore[reportArgumentType]
+        result = self.operator.evaluate(value, self.value)  # pyright: ignore[reportArgumentType]
+        return not result if self.negated else result
 
 
 def _get_or_raise[T](obj: Mapping[str, T], attr: str) -> T:
@@ -108,7 +151,16 @@ def _get_or_raise[T](obj: Mapping[str, T], attr: str) -> T:
     return result
 
 
-class SimpleListRoot[SimpleBase](RootModel[list[SimpleBase]]):  # noqa: D101
+class SimpleListRoot[SimpleBase](RootModel[list[SimpleBase]]):
+    """An implementation of Pydantic's RootModel for lists.
+
+    Adds (most) methods from the built-in list class.
+
+    Adds filtering capabilities via Filter objects.
+    """
+
+    root: list[SimpleBase]
+
     @classmethod
     def empty(cls) -> Self:
         """Create an empty instance of the class."""
@@ -146,11 +198,10 @@ class SimpleListRoot[SimpleBase](RootModel[list[SimpleBase]]):  # noqa: D101
 
     def _filter_list(self, filters: Iterable[Filter[SimpleBase]]) -> Self:
         assert isinstance(self.root, list), "_filter_list requires that root is a list"
+        filtered_data = list(self.root)
         for filter in filters:
-            self.root: list[SimpleBase] = [
-                item for item in self.root if filter.evaluate(item)
-            ]
-        return self
+            filtered_data = [item for item in filtered_data if filter.evaluate(item)]
+        return self.__class__(root=filtered_data)
 
     @property
     def base_type(self) -> type[SimpleBase]:
@@ -160,25 +211,43 @@ class SimpleListRoot[SimpleBase](RootModel[list[SimpleBase]]):  # noqa: D101
         items_schema = cast("ModelSchema", _get_or_raise(schema, "items_schema"))
         return cast("type[SimpleBase]", _get_or_raise(items_schema, "cls"))
 
-    def filter(self, **kwargs: object) -> Self:
-        """Find items that match the kwargs.
+    def filter(self, *filters: "Filter[SimpleBase]", **kwargs: object) -> Self:
+        """Return a new instance with items that match the kwargs or filter objects.
+
+        This method does not modify the original instance, similar to Django querysets.
 
         Example:
         ```
         >>> search = SimpleRoot[list[Foo]](root=[Foo(a=1), Foo(a=2), Foo(a=3)])
-        >>> search.filter(a__gt=1)
-        SearchRoot([Foo(a=2), Foo(a=3)])
-        >>> search = SimpleRoot[list[int]](root=[1, 2, 3])
-        >>> search.filter(gt=1)
-        SimpleRoot([2, 3])
+        >>> filtered = search.filter(a__gt=1)  # Returns new instance
+        >>> # Original search is unchanged
+        >>> len(search)  # Still 3
+        3
+        >>> len(filtered)  # New instance has 2
+        2
+        >>>
+        >>> # Chaining filters
+        >>> result = search.filter(a__gt=1).filter(a__lt=3)
+        >>>
+        >>> # Using negated filters with ~ operator
+        >>> from attrmagic.models import Filter
+        >>> from attrmagic.core import QueryPath
+        >>> negated_filter = ~Filter(path=QueryPath.from_string('a__gt'), value=1)
+        >>> search.filter(negated_filter)
+        SearchRoot([Foo(a=1)])
         ```
 
         Args:
+            filters: Filter objects to apply.
             kwargs: The attributes to filter by.
+
+        Returns:
+            A new instance containing only items matching the filters.
         """
-        filters = self._get_filters(**kwargs)
+        kwarg_filters = self._get_filters(**kwargs)
+        all_filters = list(filters) + kwarg_filters
         assert isinstance(self.root, list), "root must be a list"
-        return self._filter_list(filters)
+        return self._filter_list(all_filters)
 
     @overload
     def get(
@@ -370,11 +439,65 @@ class SearchBase[SearchRoot: ClassBase](SimpleListRoot[SearchRoot]):
         return lhs, rhs, operator
 
     def exclude(self, **kwargs: object) -> Self:
-        """Remove items that match the kwargs."""
+        """Return a new instance excluding items that match the kwargs.
+
+        This method does not modify the original instance, similar to Django querysets.
+
+        Returns:
+            A new instance excluding items matching the criteria.
+        """
         lhs, rhs, operator = self._get_compare_tuple(**kwargs)
 
-        self.root: list[SearchRoot] = [
+        excluded_data = [
             item for item in self.root if not self._compare(item, lhs, rhs, operator)
         ]
 
-        return self
+        return self.__class__(root=excluded_data)
+
+    def all(self) -> Self:
+        """Return a copy of this queryset (like Django's QuerySet.all()).
+
+        Returns:
+            A new instance with the same data.
+        """
+        return self.__class__(root=list(self.root))
+
+    def none(self) -> Self:
+        """Return an empty queryset of the same type (like Django's QuerySet.none()).
+
+        Returns:
+            A new empty instance of the same class.
+        """
+        return self.__class__.empty()
+
+    def count(self) -> int:
+        """Return the count of items (like Django's QuerySet.count()).
+
+        Returns:
+            The number of items in this queryset.
+        """
+        return len(self.root)
+
+    def exists(self) -> bool:
+        """Return True if the queryset contains any results (like Django's QuerySet.exists()).
+
+        Returns:
+            True if there are any items, False otherwise.
+        """
+        return len(self.root) > 0
+
+    def first(self) -> SearchRoot | None:
+        """Return the first item or None if empty (like Django's QuerySet.first()).
+
+        Returns:
+            The first item or None if the queryset is empty.
+        """
+        return self.root[0] if self.root else None
+
+    def last(self) -> SearchRoot | None:
+        """Return the last item or None if empty (like Django's QuerySet.last()).
+
+        Returns:
+            The last item or None if the queryset is empty.
+        """
+        return self.root[-1] if self.root else None
