@@ -1,3 +1,9 @@
+## 0.3.0 (2026-02-02)
+
+### Feat
+
+- **filter**: allow for negation of filtering using Q objects
+
 ## 0.2.3 (2026-01-27)
 
 ### Fix
